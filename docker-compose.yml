@@ -13,10 +13,7 @@ services:
       - trinity_network
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: trinity-backend:latest
+    build: backend
     container_name: trinity_backend
     restart: always
     environment:
@@ -37,10 +34,7 @@ services:
       - trinity_network
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    image: trinity-frontend:latest
+    build: frontend
     container_name: trinity_frontend
     restart: always
     environment:
