@@ -1,0 +1,230 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================ */
+/* Trinity Pixels — Premium Dark Mode Design    */
+/* ============================================ */
+
+:root {
+  /* Backgrounds */
+  --bg-primary: #0B0E14;
+  --bg-secondary: #111520;
+  --bg-card: #161B27;
+  --bg-card-hover: #1C2233;
+  --bg-elevated: #1E2538;
+
+  /* Brand — Electric Indigo */
+  --brand-50: #EEF2FF;
+  --brand-100: #E0E7FF;
+  --brand-200: #C7D2FE;
+  --brand-300: #A5B4FC;
+  --brand-400: #818CF8;
+  --brand-500: #6366F1;
+  --brand-600: #4F46E5;
+  --brand-700: #4338CA;
+
+  /* Text */
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+
+  /* Borders */
+  --border-subtle: rgba(148, 163, 184, 0.08);
+  --border-default: rgba(148, 163, 184, 0.12);
+  --border-hover: rgba(148, 163, 184, 0.20);
+
+  /* Status */
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --info: #3B82F6;
+}
+
+/* ============================================ */
+/* Base Styles                                  */
+/* ============================================ */
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-feature-settings: "cv02", "cv05";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================ */
+/* Component Classes                            */
+/* ============================================ */
+
+@layer components {
+  /* Cards */
+  .card {
+    @apply rounded-xl border bg-[var(--bg-card)] border-[var(--border-subtle)]
+           transition-all duration-200;
+  }
+  .card:hover {
+    background-color: var(--bg-card-hover);
+    border-color: var(--border-hover);
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply px-6 py-3 rounded-lg font-semibold text-white
+           transition-all duration-200 cursor-pointer
+           hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0;
+    background: linear-gradient(135deg, var(--brand-600), var(--brand-500));
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+  }
+  .btn-primary:hover {
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.45);
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 rounded-lg font-semibold transition-all duration-200
+           cursor-pointer border hover:-translate-y-0.5;
+    color: var(--text-primary);
+    background: transparent;
+    border-color: var(--border-default);
+  }
+  .btn-secondary:hover {
+    background: var(--bg-card);
+    border-color: var(--brand-400);
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 cursor-pointer;
+    color: var(--text-secondary);
+  }
+  .btn-ghost:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+  }
+
+  /* Input Fields */
+  .input-field {
+    @apply w-full px-4 py-3 rounded-lg border outline-none transition-all duration-200;
+    background: var(--bg-secondary);
+    border-color: var(--border-default);
+    color: var(--text-primary);
+  }
+  .input-field::placeholder {
+    color: var(--text-muted);
+  }
+  .input-field:focus {
+    border-color: var(--brand-400);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .badge-new {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60A5FA;
+  }
+  .badge-success {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ADE80;
+  }
+  .badge-warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #FBBF24;
+  }
+  .badge-danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: #F87171;
+  }
+  .badge-brand {
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--brand-300);
+  }
+
+  /* Stat Card */
+  .stat-card {
+    @apply card p-6;
+  }
+
+  /* Sidebar Link */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium
+           transition-all duration-200;
+    color: var(--text-secondary);
+  }
+  .sidebar-link:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+  }
+  .sidebar-link.active {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--brand-300);
+    border-left: 3px solid var(--brand-500);
+    padding-left: 13px;
+  }
+
+  /* Data Table */
+  .data-table {
+    @apply w-full;
+  }
+  .data-table thead th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .data-table tbody td {
+    @apply px-4 py-4 text-sm;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .data-table tbody tr {
+    @apply transition-colors duration-150;
+  }
+  .data-table tbody tr:hover {
+    background: var(--bg-card-hover);
+  }
+
+  /* Gauge (for minutes) */
+  .gauge-green { stroke: var(--success); }
+  .gauge-yellow { stroke: var(--warning); }
+  .gauge-red { stroke: var(--danger); }
+
+  /* Section spacing */
+  .section {
+    @apply py-20 px-6 lg:px-8;
+  }
+}
+
+/* ============================================ */
+/* Animations                                   */
+/* ============================================ */
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.4); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+.animate-slide-up {
+  animation: slide-up 0.6s ease-out forwards;
+}
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Staggered animation delays */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }

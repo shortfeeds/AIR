@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: trinity_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-trinity}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-trinity_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-trinitypixels}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - trinity_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trinity_backend
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-trinity}:${POSTGRES_PASSWORD:-trinity_secret}@db:5432/${POSTGRES_DB:-trinitypixels}
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 4000
+      FRONTEND_URL: ${FRONTEND_URL}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET}
+      PLIVO_AUTH_ID: ${PLIVO_AUTH_ID}
+      PLIVO_AUTH_TOKEN: ${PLIVO_AUTH_TOKEN}
+    depends_on:
+      - db
+    ports:
+      - "4000:4000"
+    networks:
+      - trinity_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: trinity_frontend
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - trinity_network
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: trinity_n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - trinity_network
+
+networks:
+  trinity_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  n8n_data:
