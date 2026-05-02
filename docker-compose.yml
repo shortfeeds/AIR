@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:16-alpine
@@ -18,6 +16,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: trinity-backend:latest
     container_name: trinity_backend
     restart: always
     environment:
@@ -41,6 +40,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: trinity-frontend:latest
     container_name: trinity_frontend
     restart: always
     environment:
