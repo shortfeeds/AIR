@@ -1,3 +1,5 @@
+"use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Phone, PhoneIncoming, PhoneMissed, Clock, Users, Headphones, Shield, Zap, ChevronRight, Star, ArrowRight, CheckCircle2, MessageSquare } from "lucide-react";
 
@@ -14,6 +16,97 @@ const faqs = [
   { q: "Can I change plans?", a: "Yes! Upgrade or downgrade anytime from your dashboard. Changes take effect immediately." },
   { q: "How long does setup take?", a: "We activate your AI receptionist within 24 hours of receiving your intake form. Most clients are live within 12 hours." },
 ];
+
+function DemoGenerator() {
+  const [url, setUrl] = useState("");
+  const [status, setStatus] = useState<"idle" | "scraping" | "ready">("idle");
+  const [result, setResult] = useState<any>(null);
+
+  const generate = async () => {
+    if (!url) return;
+    setStatus("scraping");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"}/demo/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+      setResult(data);
+      setStatus("ready");
+    } catch (e) {
+      console.error(e);
+      setStatus("idle");
+    }
+  };
+
+  return (
+    <div className="card p-2 md:p-4 max-w-2xl mx-auto shadow-2xl relative">
+      {status === "idle" && (
+        <div className="flex flex-col md:flex-row gap-3">
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="Enter your business website (e.g. clinic.com)"
+            className="input-field flex-1 !h-14 !px-6"
+          />
+          <button onClick={generate} className="btn-primary !h-14 px-8 whitespace-nowrap flex items-center gap-2">
+            Build My AI <Zap className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {status === "scraping" && (
+        <div className="py-12 text-center animate-pulse">
+          <div className="flex justify-center gap-2 mb-4">
+            <div className="w-3 h-3 rounded-full bg-indigo-500 animate-bounce delay-75" />
+            <div className="w-3 h-3 rounded-full bg-indigo-500 animate-bounce delay-150" />
+            <div className="w-3 h-3 rounded-full bg-indigo-500 animate-bounce delay-300" />
+          </div>
+          <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+            Scraping {url} and training your AI agent...
+          </p>
+        </div>
+      )}
+
+      {status === "ready" && result && (
+        <div className="p-4 text-left animate-fade-in">
+          <div className="flex items-center gap-3 mb-6 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+            <CheckCircle2 className="w-6 h-6 text-indigo-400" />
+            <div>
+              <p className="text-xs uppercase tracking-widest font-bold text-indigo-400">Success</p>
+              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                AI Receptionist for {result.business_name} is Ready!
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <p className="text-xs font-bold uppercase opacity-40 mb-2">Generated AI Persona</p>
+            <div className="p-4 rounded-lg bg-black/40 text-xs leading-relaxed font-mono italic" style={{ color: "var(--text-secondary)" }}>
+              &quot;{result.generated_prompt}&quot;
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-xl bg-white/5 border border-white/10">
+            <div>
+              <p className="text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>Call your AI now:</p>
+              <p className="text-2xl font-bold text-indigo-400">{result.demo_number}</p>
+              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Enter PIN: <span className="text-white font-bold">{result.pin}</span> when asked.</p>
+            </div>
+            <Link href="/signup" className="btn-primary !py-3 !px-8">
+              Claim This Number
+            </Link>
+          </div>
+          
+          <button onClick={() => setStatus("idle")} className="mt-6 text-xs text-indigo-400 underline block mx-auto">
+            Try another website
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function HomePage() {
   return (
@@ -87,6 +180,21 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Section: Live Demo Generator */}
+      <section id="instant-demo" className="section relative overflow-hidden" style={{ background: "rgba(99, 102, 241, 0.03)" }}>
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <div className="badge-brand badge mb-4">New: Instant AI Preview</div>
+          <h2 className="text-3xl md:text-5xl font-bold mb-6" style={{ color: "var(--text-primary)" }}>
+            See your AI Receptionist in <span style={{ color: "var(--brand-400)" }}>60 Seconds</span>
+          </h2>
+          <p className="text-lg mb-10 mx-auto max-w-2xl" style={{ color: "var(--text-secondary)" }}>
+            Enter your website URL. Our engine will analyze your business and generate a custom AI receptionist persona for you instantly.
+          </p>
+
+          <DemoGenerator />
         </div>
       </section>
 

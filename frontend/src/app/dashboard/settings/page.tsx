@@ -6,19 +6,29 @@ import { Phone, Save, Loader2, CheckCircle, Send } from "lucide-react";
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
 export default function SettingsPage() {
-  const [_settings, setSettings] = useState<any>(null);
-  const [transferNumber, setTransferNumber] = useState("");
+  const [transferNumber, setTransferNumber] = useState("+91 98765 43210");
   const [transferMode, setTransferMode] = useState("on_request");
-  const [hours, setHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({});
+  const [hours, setHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({
+    Monday: { open: "09:00", close: "18:00", closed: false },
+    Tuesday: { open: "09:00", close: "18:00", closed: false },
+    Wednesday: { open: "09:00", close: "18:00", closed: false },
+    Thursday: { open: "09:00", close: "18:00", closed: false },
+    Friday: { open: "09:00", close: "18:00", closed: false },
+    Saturday: { open: "10:00", close: "14:00", closed: false },
+    Sunday: { open: "09:00", close: "18:00", closed: true },
+  });
+  const [language, setLanguage] = useState("English");
+  const [bookingLink, setBookingLink] = useState("");
   const [updateNotes, setUpdateNotes] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
   useEffect(() => {
     api("/settings").then((data) => {
-      setSettings(data.settings);
       setTransferNumber(data.settings.transfer_number || "");
       setTransferMode(data.settings.transfer_mode || "on_request");
+      setLanguage(data.settings.knowledge?.language || "English");
+      setBookingLink(data.settings.knowledge?.booking_link || "");
       const h: Record<string, any> = {};
       DAYS.forEach(d => {
         const dayData = data.settings.operating_hours?.[d];
@@ -73,6 +83,36 @@ export default function SettingsPage() {
           <button onClick={() => saveField("transfer", "/settings/transfer", { transfer_number: transferNumber, transfer_mode: transferMode })} className="btn-primary flex items-center gap-2 text-sm" disabled={saving === "transfer"}>
             {saving === "transfer" ? <Loader2 className="w-4 h-4 animate-spin" /> : saved === "transfer" ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
           </button>
+        </div>
+      </div>
+
+      {/* AI Configuration */}
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>AI Configuration</h3>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Customize how your AI speaks and handles bookings</p>
+          </div>
+          <button onClick={() => saveField("ai", "/settings/ai", { language, booking_link: bookingLink })} className="btn-secondary text-sm flex items-center gap-2" disabled={saving === "ai"}>
+            {saving === "ai" ? <Loader2 className="w-4 h-4 animate-spin" /> : saved === "ai" ? <><CheckCircle className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save AI Settings</>}
+          </button>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">AI Language</label>
+            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="input-field">
+              <option value="English">English</option>
+              <option value="Hindi">Hindi</option>
+              <option value="Hinglish">Hinglish (Hindi + English)</option>
+              <option value="Tamil">Tamil</option>
+              <option value="Telugu">Telugu</option>
+              <option value="Kannada">Kannada</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">Booking Link (Calendly/Other)</label>
+            <input value={bookingLink} onChange={(e) => setBookingLink(e.target.value)} className="input-field" placeholder="https://calendly.com/your-business" />
+          </div>
         </div>
       </div>
 

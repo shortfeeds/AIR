@@ -11,6 +11,8 @@ const paymentRoutes = require('./routes/payments');
 const settingsRoutes = require('./routes/settings');
 const adminRoutes = require('./routes/admin');
 const plivoRoutes = require('./routes/plivo');
+const agentRoutes = require('./routes/agent');
+const demoRoutes = require('./routes/demo');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000;

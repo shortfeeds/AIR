@@ -81,6 +81,32 @@ router.post('/post-call', async (req, res) => {
   } finally {
     client.release();
   }
+// POST /api/plivo/fallback — SMS text-back if AI fails or call is missed
+router.post('/fallback', async (req, res) => {
+  try {
+    const { From, To } = req.body; // Plivo sends From (caller) and To (business number)
+
+    // Find the business name to make the SMS personal
+    const biz = await db.query(
+      `SELECT cp.business_name FROM phone_numbers pn 
+       JOIN client_profiles cp ON cp.user_id = pn.client_id 
+       WHERE pn.plivo_number = $1`, [To]
+    );
+
+    const businessName = biz.rows[0]?.business_name || "us";
+
+    // Plivo XML to send SMS
+    res.type('text/xml').send(`
+      <Response>
+        <Message from="${To}" to="${From}">
+          Hi, you just called ${businessName}. Our AI lines are currently busy, but how can we help you via text?
+        </Message>
+      </Response>
+    `);
+  } catch (err) {
+    console.error('Fallback webhook error:', err);
+    res.status(500).send('<Response></Response>');
+  }
 });
 
 module.exports = router;

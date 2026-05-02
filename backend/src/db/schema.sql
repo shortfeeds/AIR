@@ -116,6 +116,8 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
   primary_services TEXT,
   top_faqs JSONB DEFAULT '[]',
   ai_goal VARCHAR(100) DEFAULT 'answer_faqs' CHECK (ai_goal IN ('book_appointment', 'take_message', 'answer_faqs', 'qualify_leads')),
+  booking_link VARCHAR(500),
+  language VARCHAR(50) DEFAULT 'English',
   last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   update_notes TEXT,
   update_status VARCHAR(20) DEFAULT 'current' CHECK (update_status IN ('current', 'pending_review', 'updating')),

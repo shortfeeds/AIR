@@ -12,7 +12,7 @@ router.get('/', auth, async (req, res) => {
       [req.user.id]
     );
     const kbResult = await db.query(
-      'SELECT primary_services, top_faqs, ai_goal, last_updated, update_notes, update_status FROM knowledge_base WHERE client_id = $1',
+      'SELECT primary_services, top_faqs, ai_goal, booking_link, language, last_updated, update_notes, update_status FROM knowledge_base WHERE client_id = $1',
       [req.user.id]
     );
 
@@ -25,6 +25,26 @@ router.get('/', auth, async (req, res) => {
   } catch (err) {
     console.error('Get settings error:', err);
     res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+// PATCH /api/settings/ai — Update AI preferences (Language, Booking Link)
+router.patch('/ai', auth, async (req, res) => {
+  try {
+    const { language, booking_link } = req.body;
+
+    await db.query(
+      `UPDATE knowledge_base
+       SET language = COALESCE($1, language),
+           booking_link = COALESCE($2, booking_link)
+       WHERE client_id = $3`,
+      [language, booking_link, req.user.id]
+    );
+
+    res.json({ message: 'AI preferences updated' });
+  } catch (err) {
+    console.error('Update AI settings error:', err);
+    res.status(500).json({ error: 'Failed to update AI preferences' });
   }
 });
 
