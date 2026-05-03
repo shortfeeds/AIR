@@ -24,20 +24,34 @@ async function initDatabase() {
         }
       }
     }
+    // Migrations for existing tables
+    try {
+      await db.query('ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS prompt_b TEXT');
+      await db.query('ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS ab_split_active BOOLEAN DEFAULT false');
+      
+      // Update subscriptions plan_name check
+      await db.query('ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS subscriptions_plan_name_check');
+      await db.query("ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_plan_name_check CHECK (plan_name IN ('free_trial', 'trial', 'silver', 'gold', 'diamond', 'platinum', 'enterprise'))");
+      
+      await db.query('ALTER TABLE call_leads ADD COLUMN IF NOT EXISTS used_prompt CHAR(1) DEFAULT \'A\'');
+    } catch (e) {
+      console.log('⚠️ Migration notice (can usually be ignored):', e.message);
+    }
+
     console.log('✅ Schema updated successfully');
 
     // Create admin user with proper hash
     const adminPassword = 'TP@2026%';
     const hash = await bcrypt.hash(adminPassword, 10);
 
-    await db.query('DELETE FROM users WHERE email = $1', ['admin@trinitypixels.in']);
+    // Ensure we have at least one admin
     await db.query(
       `INSERT INTO users (name, email, password_hash, role)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (email) DO UPDATE SET password_hash = $3, name = $1`,
       ['Trinity Admin', 'ai@trinitypixels.com', hash, 'admin']
     );
-    console.log('✅ Admin user created (ai@trinitypixels.com / TP@2026%)');
+    console.log('✅ Admin user verified (ai@trinitypixels.com / TP@2026%)');
 
     console.log('🎉 Database initialization complete!');
     process.exit(0);

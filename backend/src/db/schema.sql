@@ -63,7 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_phone_numbers_plivo ON phone_numbers(plivo_number
 CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   client_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  plan_name VARCHAR(50) NOT NULL DEFAULT 'silver' CHECK (plan_name IN ('silver', 'gold', 'diamond', 'platinum', 'enterprise')),
+  plan_name VARCHAR(50) NOT NULL DEFAULT 'silver' CHECK (plan_name IN ('free_trial', 'trial', 'silver', 'gold', 'diamond', 'platinum', 'enterprise')),
   available_minutes INTEGER NOT NULL DEFAULT 0,
   total_minutes_purchased INTEGER NOT NULL DEFAULT 0,
   billing_cycle_start DATE DEFAULT CURRENT_DATE,
