@@ -39,11 +39,14 @@ router.post('/post-call', async (req, res) => {
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
-    const { plivo_number, caller_number, duration_seconds, transcript, ai_summary, action_taken } = req.body;
+    const { plivo_number, caller_number, duration_seconds, transcript, ai_summary, action_taken, recording_url } = req.body;
 
     // Find client by Plivo number
     const pn = await client.query(
-      'SELECT client_id FROM phone_numbers WHERE plivo_number = $1',
+      `SELECT pn.client_id, cp.n8n_webhook_url, cp.business_name 
+       FROM phone_numbers pn 
+       JOIN client_profiles cp ON cp.user_id = pn.client_id
+       WHERE pn.plivo_number = $1`,
       [plivo_number]
     );
     if (pn.rows.length === 0) {
@@ -51,14 +54,14 @@ router.post('/post-call', async (req, res) => {
       return res.status(404).json({ error: 'Unknown Plivo number' });
     }
 
-    const clientId = pn.rows[0].client_id;
+    const { client_id: clientId, n8n_webhook_url: webhookUrl, business_name: businessName } = pn.rows[0];
     const minutesToDeduct = Math.ceil(duration_seconds / 60);
 
     // Insert call lead
     await client.query(
-      `INSERT INTO call_leads (client_id, caller_number, call_duration_seconds, ai_summary, transcript_raw, action_taken)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [clientId, caller_number, duration_seconds, ai_summary || '', transcript || '', action_taken || '']
+      `INSERT INTO call_leads (client_id, caller_number, call_duration_seconds, ai_summary, transcript_raw, action_taken, recording_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [clientId, caller_number, duration_seconds, ai_summary || '', transcript || '', action_taken || '', recording_url || '']
     );
 
     // Deduct minutes
@@ -68,6 +71,22 @@ router.post('/post-call', async (req, res) => {
     );
 
     await client.query('COMMIT');
+
+    // Trigger WhatsApp Notification if webhook exists
+    if (webhookUrl) {
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'new_lead',
+          business_name: businessName,
+          caller: caller_number,
+          summary: ai_summary,
+          action: action_taken,
+          recording: recording_url
+        })
+      }).catch(e => console.error('WhatsApp notification failed:', e.message));
+    }
 
     // Check if below threshold
     const subCheck = await db.query('SELECT available_minutes FROM subscriptions WHERE client_id = $1', [clientId]);

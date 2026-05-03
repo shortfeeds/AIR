@@ -75,7 +75,8 @@ router.get('/stats', auth, async (req, res) => {
         COALESCE(SUM(call_duration_seconds) FILTER (WHERE call_timestamp >= CURRENT_DATE), 0) as minutes_today,
         COUNT(*) FILTER (WHERE status = 'followed_up' AND call_timestamp >= CURRENT_DATE) as followed_up_today,
         COUNT(*) FILTER (WHERE status = 'new') as total_new_leads,
-        COUNT(*) as total_leads
+        COUNT(*) as total_leads,
+        (SELECT avg_lead_value FROM client_profiles WHERE user_id = $1) as avg_lead_value
        FROM call_leads
        WHERE client_id = $1`,
       [req.user.id]
@@ -83,6 +84,7 @@ router.get('/stats', auth, async (req, res) => {
 
     const stats = result.rows[0];
     stats.minutes_today = Math.ceil(parseInt(stats.minutes_today) / 60);
+    stats.total_revenue_saved = stats.total_leads * (stats.avg_lead_value || 1000);
 
     res.json({ stats });
   } catch (err) {

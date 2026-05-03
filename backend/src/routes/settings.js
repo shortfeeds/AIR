@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/', auth, async (req, res) => {
   try {
     const profileResult = await db.query(
-      'SELECT transfer_number, transfer_mode, operating_hours FROM client_profiles WHERE user_id = $1',
+      'SELECT transfer_number, transfer_mode, operating_hours, avg_lead_value, logo_url, n8n_webhook_url FROM client_profiles WHERE user_id = $1',
       [req.user.id]
     );
     const kbResult = await db.query(
@@ -103,6 +103,27 @@ router.post('/knowledge-update', auth, async (req, res) => {
   } catch (err) {
     console.error('Knowledge update error:', err);
     res.status(500).json({ error: 'Failed to submit update request' });
+  }
+});
+
+// PATCH /api/settings/brand — Update Brand & Notifications
+router.patch('/brand', auth, async (req, res) => {
+  try {
+    const { avg_lead_value, logo_url, n8n_webhook_url } = req.body;
+
+    await db.query(
+      `UPDATE client_profiles
+       SET avg_lead_value = COALESCE($1, avg_lead_value),
+           logo_url = COALESCE($2, logo_url),
+           n8n_webhook_url = COALESCE($3, n8n_webhook_url)
+       WHERE user_id = $4`,
+      [avg_lead_value, logo_url, n8n_webhook_url, req.user.id]
+    );
+
+    res.json({ message: 'Brand and notification settings updated' });
+  } catch (err) {
+    console.error('Update brand error:', err);
+    res.status(500).json({ error: 'Failed to update brand settings' });
   }
 });
 

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { Phone, Calendar, CheckCircle, ArrowRight, Copy, Check } from "lucide-react";
+import { Phone, Calendar, CheckCircle, ArrowRight, Copy, Check, Play, Volume2 } from "lucide-react";
 
 interface Lead {
   id: string;
@@ -12,6 +12,7 @@ interface Lead {
   status: string;
   transcript_raw: string;
   action_taken: string;
+  recording_url?: string;
 }
 
 interface Stats {
@@ -20,6 +21,7 @@ interface Stats {
   followed_up_today: string;
   total_new_leads: string;
   total_leads: string;
+  total_revenue_saved: number;
 }
 
 export default function DashboardOverview() {
@@ -66,15 +68,15 @@ export default function DashboardOverview() {
           </div>
         </div>
 
-        <div className="card p-6 flex flex-col justify-between">
+        <div className="card p-6 flex flex-col justify-between" style={{ background: "linear-gradient(135deg, rgba(34,197,94,0.1) 0%, rgba(34,197,94,0.02) 100%)", borderColor: "rgba(34,197,94,0.2)" }}>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Total Leads</p>
-            <p className="text-4xl font-bold" style={{ color: "var(--text-primary)" }}>{stats?.total_leads || 0}</p>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-1 text-green-400">Revenue Recovered</p>
+            <p className="text-4xl font-bold text-white">₹{(stats?.total_revenue_saved || 0).toLocaleString("en-IN")}</p>
           </div>
-          <div className="pt-4 border-t" style={{ borderColor: "var(--border-subtle)" }}>
+          <div className="pt-4 border-t border-green-500/20">
             <div className="flex items-center justify-between text-sm">
-              <span style={{ color: "var(--text-muted)" }}>New Today</span>
-              <span className="font-bold" style={{ color: "var(--success)" }}>+{stats?.total_new_leads || 0}</span>
+              <span className="text-green-400/60">Estimated Value</span>
+              <span className="font-bold text-green-400">ROI: 12x</span>
             </div>
           </div>
         </div>
@@ -135,6 +137,17 @@ export default function DashboardOverview() {
                         <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2">Action Taken</p>
                         <span className="badge badge-success text-[10px]">{lead.action_taken || "Information Provided"}</span>
                       </div>
+                      {lead.recording_url && (
+                        <div className="pt-4 border-t border-white/5">
+                          <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-3 flex items-center gap-2">
+                            <Volume2 className="w-3 h-3" /> Call Recording
+                          </p>
+                          <audio controls className="w-full h-8 custom-audio-player">
+                            <source src={lead.recording_url} type="audio/mpeg" />
+                            Your browser does not support the audio element.
+                          </audio>
+                        </div>
+                      )}
                     </div>
                     <div className="bg-black/30 rounded-xl p-4 border border-white/5">
                       <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-3">Call Transcript</p>

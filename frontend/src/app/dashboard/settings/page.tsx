@@ -19,6 +19,9 @@ export default function SettingsPage() {
   });
   const [language, setLanguage] = useState("English");
   const [bookingLink, setBookingLink] = useState("");
+  const [avgLeadValue, setAvgLeadValue] = useState(1000);
+  const [logoUrl, setLogoUrl] = useState("");
+  const [n8nWebhookUrl, setN8nWebhookUrl] = useState("");
   const [updateNotes, setUpdateNotes] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -29,6 +32,9 @@ export default function SettingsPage() {
       setTransferMode(data.settings.transfer_mode || "on_request");
       setLanguage(data.settings.knowledge?.language || "English");
       setBookingLink(data.settings.knowledge?.booking_link || "");
+      setAvgLeadValue(data.settings.avg_lead_value || 1000);
+      setLogoUrl(data.settings.logo_url || "");
+      setN8nWebhookUrl(data.settings.n8n_webhook_url || "");
       const h: Record<string, any> = {};
       DAYS.forEach(d => {
         const dayData = data.settings.operating_hours?.[d];
@@ -144,6 +150,35 @@ export default function SettingsPage() {
               )}
             </div>
           ))}
+        </div>
+      </div>
+      
+      {/* Brand Identity & Notifications */}
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Brand & Notifications</h3>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>White-labeling and automated lead alerts</p>
+          </div>
+          <button onClick={() => saveField("brand", "/settings/brand", { avg_lead_value: avgLeadValue, logo_url: logoUrl, n8n_webhook_url: n8nWebhookUrl })} className="btn-secondary text-sm flex items-center gap-2" disabled={saving === "brand"}>
+            {saving === "brand" ? <Loader2 className="w-4 h-4 animate-spin" /> : saved === "brand" ? <><CheckCircle className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save Brand Settings</>}
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">Average Lead Value (₹)</label>
+              <input type="number" value={avgLeadValue} onChange={(e) => setAvgLeadValue(parseInt(e.target.value))} className="input-field" placeholder="1000" />
+            </div>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">Business Logo URL</label>
+              <input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="input-field" placeholder="https://..." />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">WhatsApp Webhook (n8n)</label>
+            <input value={n8nWebhookUrl} onChange={(e) => setN8nWebhookUrl(e.target.value)} className="input-field" placeholder="https://your-n8n-instance.com/webhook/..." />
+          </div>
         </div>
       </div>
 

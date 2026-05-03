@@ -31,6 +31,9 @@ CREATE TABLE IF NOT EXISTS client_profiles (
   transfer_number VARCHAR(20),
   transfer_mode VARCHAR(50) DEFAULT 'on_request' CHECK (transfer_mode IN ('all_calls', 'on_request')),
   onboarding_status VARCHAR(20) DEFAULT 'pending' CHECK (onboarding_status IN ('pending', 'active', 'suspended')),
+  avg_lead_value INTEGER DEFAULT 1000,
+  logo_url VARCHAR(500),
+  n8n_webhook_url VARCHAR(500),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id)
 );
@@ -82,7 +85,8 @@ CREATE TABLE IF NOT EXISTS call_leads (
   call_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   status VARCHAR(20) DEFAULT 'new' CHECK (status IN ('new', 'followed_up', 'transferred')),
   transcript_raw TEXT,
-  action_taken VARCHAR(100)
+  action_taken VARCHAR(100),
+  recording_url VARCHAR(500)
 );
 
 CREATE INDEX idx_call_leads_client ON call_leads(client_id);
