@@ -376,7 +376,7 @@ export default function HomePage() {
             Join Indian businesses that never miss a call again.
           </p>
           <Link href="/signup" className="btn-primary text-base inline-flex items-center gap-2">
-            Start Your Free Trial <ArrowRight className="w-5 h-5" />
+            Start Your Trial <ArrowRight className="w-5 h-5" />
           </Link>
         </div>
       </section>

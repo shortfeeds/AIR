@@ -328,7 +328,6 @@ export default function AdminClients() {
                     })} 
                     className="input-field"
                   >
-                    <option value="free_trial">Free Trial (15 Mins)</option>
                     <option value="trial">Paid Trial (15 Mins)</option>
                     <option value="silver">Silver Plan</option>
                     <option value="gold">Gold Plan</option>
