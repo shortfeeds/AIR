@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Mic, MicOff, PhoneOff, Loader2, Volume2, CheckCircle } from "lucide-react";
 
 export default function PublicCallPage() {
-  const { clientId } = useParams();
+  const { clientId: _clientId } = useParams();
   const [status, setStatus] = useState("ready"); // ready, connecting, active, ended
   const [muted, setMuted] = useState(false);
   const [timer, setTimer] = useState(0);

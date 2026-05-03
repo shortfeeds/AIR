@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
-import { Phone, Plus, Loader2, Settings, UserCircle, UserPlus, Key, Mail, Lock, Building, Brain, Save, ExternalLink } from "lucide-react";
+import { Phone, Plus, Loader2, Settings, UserCircle, UserPlus, Key, Brain } from "lucide-react";
 
 export default function AdminClients() {
   const [clients, setClients] = useState<any[]>([]);

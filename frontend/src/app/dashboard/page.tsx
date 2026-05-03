@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { Phone, Calendar, CheckCircle, ArrowRight, Copy, Check, Play, Volume2 } from "lucide-react";
+import { Phone, Calendar, CheckCircle, ArrowRight, Copy, Check, Volume2 } from "lucide-react";
 
 interface Lead {
   id: string;

@@ -49,6 +49,7 @@ export default function UsagePage() {
   }, []);
 
   const usedPercent = sub ? Math.max(0, 100 - parseFloat(sub.usage_percentage || "0")) : 0;
+  const isLowMinutes = sub ? sub.available_minutes < 50 : false;
 
   const handlePayment = async (planId: string) => {
     setRecharging(planId);
