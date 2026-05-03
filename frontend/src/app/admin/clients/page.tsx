@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { Phone, Plus, Loader2, Settings, UserCircle, UserPlus, Key, Brain } from "lucide-react";
+import Portal from "@/components/Portal";
 
 export default function AdminClients() {
   const [clients, setClients] = useState<any[]>([]);
@@ -172,62 +173,69 @@ export default function AdminClients() {
 
       {/* Assign Number Modal */}
       {assignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setAssignModal(null)}>
-          <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Assign Plivo Number to {assignModal.name}</h3>
-            <input value={plivoNumber} onChange={(e) => setPlivoNumber(e.target.value)} className="input-field mb-4" placeholder="+91 XXXX XXXX XX" />
-            <div className="flex gap-2">
-              <button onClick={() => setAssignModal(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
-              <button onClick={assignNumber} disabled={assigning} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
-                {assigning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Assign"}
-              </button>
+        <Portal>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setAssignModal(null)}>
+            <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+              <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Assign Plivo Number to {assignModal.name}</h3>
+              <input value={plivoNumber} onChange={(e) => setPlivoNumber(e.target.value)} className="input-field mb-4" placeholder="+91 XXXX XXXX XX" />
+              <div className="flex gap-2">
+                <button onClick={() => setAssignModal(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
+                <button onClick={assignNumber} disabled={assigning} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
+                  {assigning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Assign"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
 
       {/* Add Minutes Modal */}
       {addMinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setAddMinModal(null)}>
-          <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Add Minutes to {addMinModal.name}</h3>
-            <input type="number" value={bonusMins} onChange={(e) => setBonusMins(e.target.value)} className="input-field mb-4" placeholder="e.g. 100" />
-            <div className="flex gap-2">
-              <button onClick={() => setAddMinModal(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
-              <button onClick={addMinutes} disabled={addingMins} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
-                {addingMins ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Minutes"}
-              </button>
+        <Portal>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setAddMinModal(null)}>
+            <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+              <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Add Minutes to {addMinModal.name}</h3>
+              <input type="number" value={bonusMins} onChange={(e) => setBonusMins(e.target.value)} className="input-field mb-4" placeholder="e.g. 100" />
+              <div className="flex gap-2">
+                <button onClick={() => setAddMinModal(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
+                <button onClick={addMinutes} disabled={addingMins} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
+                  {addingMins ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Minutes"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
       {/* Change Plan Modal */}
       {changePlanModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setChangePlanModal(null)}>
-          <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Change Plan for {changePlanModal.name}</h3>
-            <p className="text-xs mb-3 text-white/50">Current: {changePlanModal.currentPlan}</p>
-            <select value={newPlan} onChange={(e) => setNewPlan(e.target.value)} className="input-field mb-4">
-              <option value="">Select new plan...</option>
-              <option value="silver">Silver</option>
-              <option value="gold">Gold</option>
-              <option value="diamond">Diamond</option>
-              <option value="platinum">Platinum</option>
-            </select>
-            <div className="flex gap-2">
-              <button onClick={() => setChangePlanModal(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
-              <button onClick={changePlan} disabled={changingPlan || !newPlan} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
-                {changingPlan ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Plan"}
-              </button>
+        <Portal>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setChangePlanModal(null)}>
+            <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+              <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Change Plan for {changePlanModal.name}</h3>
+              <p className="text-xs mb-3 text-white/50">Current: {changePlanModal.currentPlan}</p>
+              <select value={newPlan} onChange={(e) => setNewPlan(e.target.value)} className="input-field mb-4">
+                <option value="">Select new plan...</option>
+                <option value="silver">Silver</option>
+                <option value="gold">Gold</option>
+                <option value="diamond">Diamond</option>
+                <option value="platinum">Platinum</option>
+              </select>
+              <div className="flex gap-2">
+                <button onClick={() => setChangePlanModal(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
+                <button onClick={changePlan} disabled={changingPlan || !newPlan} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
+                  {changingPlan ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Plan"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
 
       {/* Add Client Modal */}
       {addClientModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setAddClientModal(false)}>
-          <div className="card p-8 w-full max-w-xl shadow-2xl relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <Portal>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setAddClientModal(false)}>
+            <div className="card p-8 w-full max-w-xl shadow-2xl relative max-h-[95vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="mb-6">
               <h3 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>Create Business Account</h3>
               <p className="text-sm opacity-50">Manually provision a new client on the platform</p>
@@ -299,57 +307,62 @@ export default function AdminClients() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
 
       {/* Reset Password Modal */}
       {pwModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setPwModal(null)}>
-          <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Reset Password for {pwModal.name}</h3>
-            <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} className="input-field mb-4" placeholder="Enter new password" />
-            <div className="flex gap-2">
-              <button onClick={() => setPwModal(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
-              <button onClick={resetPassword} disabled={resetting || !newPw} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
-                {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Update Password"}
-              </button>
+        <Portal>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setPwModal(null)}>
+            <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+              <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Reset Password for {pwModal.name}</h3>
+              <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} className="input-field mb-4" placeholder="Enter new password" />
+              <div className="flex gap-2">
+                <button onClick={() => setPwModal(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
+                <button onClick={resetPassword} disabled={resetting || !newPw} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
+                  {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Update Password"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
       {/* A/B Test Modal */}
       {abModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setAbModal(null)}>
-          <div className="card p-8 w-full max-w-xl shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-6">
-              <h3 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>AI A/B Testing — {abModal.name}</h3>
-              <p className="text-sm opacity-50">Compare two different AI personalities to see which converts better</p>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold uppercase tracking-widest opacity-40">Test Status</label>
-                  <button onClick={() => setAbModal({ ...abModal, abActive: !abModal.abActive })} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${abModal.abActive ? 'bg-indigo-600' : 'bg-gray-700'}`}>
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${abModal.abActive ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
+        <Portal>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setAbModal(null)}>
+            <div className="card p-8 w-full max-w-xl shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+              <div className="mb-6">
+                <h3 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>AI A/B Testing — {abModal.name}</h3>
+                <p className="text-sm opacity-50">Compare two different AI personalities to see which converts better</p>
+              </div>
+              
+              <div className="space-y-6">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-bold uppercase tracking-widest opacity-40">Test Status</label>
+                    <button onClick={() => setAbModal({ ...abModal, abActive: !abModal.abActive })} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${abModal.abActive ? 'bg-indigo-600' : 'bg-gray-700'}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${abModal.abActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                  <p className="text-[10px] opacity-40">{abModal.abActive ? "Split traffic 50/50 between Prompt A and Prompt B" : "All traffic currently using Prompt A"}</p>
                 </div>
-                <p className="text-[10px] opacity-40">{abModal.abActive ? "Split traffic 50/50 between Prompt A and Prompt B" : "All traffic currently using Prompt A"}</p>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">Alternative Prompt (B)</label>
+                  <textarea value={abModal.promptB} onChange={(e) => setAbModal({ ...abModal, promptB: e.target.value })} className="input-field min-h-[150px] text-sm" placeholder="Describe the alternative AI personality, greeting, or script..." />
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">Alternative Prompt (B)</label>
-                <textarea value={abModal.promptB} onChange={(e) => setAbModal({ ...abModal, promptB: e.target.value })} className="input-field min-h-[150px] text-sm" placeholder="Describe the alternative AI personality, greeting, or script..." />
+              <div className="flex gap-3 mt-8">
+                <button onClick={() => setAbModal(null)} className="btn-secondary flex-1">Discard</button>
+                <button onClick={saveAbTest} disabled={savingAb} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  {savingAb ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Save Configuration <Save className="w-4 h-4" /></>}
+                </button>
               </div>
-            </div>
-
-            <div className="flex gap-3 mt-8">
-              <button onClick={() => setAbModal(null)} className="btn-secondary flex-1">Discard</button>
-              <button onClick={saveAbTest} disabled={savingAb} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                {savingAb ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Save Configuration <Save className="w-4 h-4" /></>}
-              </button>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
     </div>
   );
