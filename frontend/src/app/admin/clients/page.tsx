@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { Phone, Plus, Loader2, Settings } from "lucide-react";
+import { Phone, Plus, Loader2, Settings, UserCircle } from "lucide-react";
 
 export default function AdminClients() {
   const [clients, setClients] = useState<any[]>([]);
@@ -39,6 +39,15 @@ export default function AdminClients() {
       setAddMinModal(null); setBonusMins("");
     } catch (e) { console.error(e); }
     finally { setAddingMins(false); }
+  };
+
+  const impersonate = async (clientId: string) => {
+    try {
+      const data = await api(`/admin/impersonate/${clientId}`, { method: "POST" });
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.client));
+      window.location.href = "/dashboard";
+    } catch (e) { console.error(e); }
   };
 
   const changePlan = async () => {
@@ -86,6 +95,9 @@ export default function AdminClients() {
                     </button>
                     <button onClick={() => setChangePlanModal({ id: c.id, name: c.name, currentPlan: c.plan_name || "free" })} className="btn-ghost text-xs !py-1 !px-2" title="Change Plan">
                       <Settings className="w-3 h-3" />
+                    </button>
+                    <button onClick={() => impersonate(c.id)} className="btn-ghost text-xs !py-1 !px-2 text-indigo-400" title="Login As Client">
+                      <UserCircle className="w-3 h-3" />
                     </button>
                   </div>
                 </td>

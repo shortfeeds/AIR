@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { CreditCard, History, Zap, CheckCircle, Loader2 } from "lucide-react";
+import { CreditCard, History, Zap, CheckCircle, Loader2, FileText } from "lucide-react";
 
 interface Subscription {
   plan_name: string;
@@ -186,6 +186,7 @@ export default function UsagePage() {
                 <th>Minutes</th>
                 <th>Amount</th>
                 <th>Status</th>
+                <th>Invoice</th>
               </tr>
             </thead>
             <tbody>
@@ -202,6 +203,13 @@ export default function UsagePage() {
                       {tx.status === "captured" ? <CheckCircle className="w-3 h-3 mr-1" /> : ""}
                       {tx.status}
                     </span>
+                  </td>
+                  <td>
+                    {tx.status === "captured" && (
+                      <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"}/payments/invoice/${tx.id}?token=${localStorage.getItem("token")}`} target="_blank" className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 text-xs font-semibold">
+                        <FileText className="w-3 h-3" /> View
+                      </a>
+                    )}
                   </td>
                 </tr>
               ))}

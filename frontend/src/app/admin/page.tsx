@@ -2,12 +2,15 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Users, PhoneIncoming, IndianRupee, AlertTriangle, Clock } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 
 export default function AdminDashboard() {
   const [data, setData] = useState<any>(null);
+  const [trends, setTrends] = useState<any>(null);
 
   useEffect(() => {
     api("/admin/dashboard").then(setData).catch(console.error);
+    api("/admin/analytics/trends").then(setTrends).catch(console.error);
   }, []);
 
   if (!data) return <div className="animate-pulse text-center py-20" style={{ color: "var(--text-muted)" }}>Loading...</div>;
@@ -35,6 +38,51 @@ export default function AdminDashboard() {
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{s.label}</p>
           </div>
         ))}
+      </div>
+
+      {/* Growth Charts */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div className="card p-6">
+          <h3 className="font-semibold mb-6" style={{ color: "var(--text-primary)" }}>Revenue Growth (Last 6 Months)</h3>
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trends?.revenue || []}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--brand-500)" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="var(--brand-500)" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="month" stroke="rgba(255,255,255,0.3)" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                <Tooltip 
+                  contentStyle={{ background: "#0b0e14", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}
+                  itemStyle={{ color: "var(--brand-400)" }}
+                />
+                <Area type="monotone" dataKey="total_revenue" stroke="var(--brand-500)" fillOpacity={1} fill="url(#colorRev)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="card p-6">
+          <h3 className="font-semibold mb-6" style={{ color: "var(--text-primary)" }}>Minute Usage Trends</h3>
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trends?.usage || []}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="month" stroke="rgba(255,255,255,0.3)" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip 
+                  contentStyle={{ background: "#0b0e14", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}
+                  itemStyle={{ color: "var(--info)" }}
+                />
+                <Line type="monotone" dataKey="total_minutes" stroke="var(--info)" strokeWidth={3} dot={{ fill: "var(--info)", r: 4 }} activeDot={{ r: 6 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">

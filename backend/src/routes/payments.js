@@ -159,4 +159,99 @@ router.get('/plans', (req, res) => {
   res.json({ plans });
 });
 
+// GET /api/payments/invoice/:id — Get a printable HTML invoice
+router.get('/invoice/:id', auth, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT t.*, u.name as client_name, u.email as client_email, cp.business_name 
+       FROM transactions t 
+       JOIN users u ON u.id = t.client_id 
+       JOIN client_profiles cp ON cp.user_id = u.id
+       WHERE t.id = $1`,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).send('Invoice not found');
+    }
+
+    const tx = result.rows[0];
+
+    // Simple, clean HTML template for printing
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Invoice - ${tx.razorpay_payment_id || tx.id}</title>
+        <style>
+          body { font-family: sans-serif; padding: 40px; color: #333; }
+          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+          .logo { font-size: 24px; font-weight: bold; color: #6366f1; }
+          .details { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 40px; }
+          th { text-align: left; background: #f9fafb; padding: 12px; border-bottom: 1px solid #eee; }
+          td { padding: 12px; border-bottom: 1px solid #eee; }
+          .total { margin-top: 20px; text-align: right; font-size: 20px; font-weight: bold; }
+          .footer { margin-top: 60px; font-size: 12px; color: #999; text-align: center; }
+          @media print { .no-print { display: none; } }
+        </style>
+      </head>
+      <body>
+        <div className="no-print" style="margin-bottom: 20px;">
+          <button onclick="window.print()">Print Invoice</button>
+        </div>
+        <div class="header">
+          <div>
+            <div class="logo">TRINITY PIXELS</div>
+            <p>AI Voice Receptionist Solutions</p>
+          </div>
+          <div style="text-align: right;">
+            <p><strong>Invoice #:</strong> ${tx.razorpay_payment_id || 'TEMP-'+tx.id.slice(0,8)}</p>
+            <p><strong>Date:</strong> ${new Date(tx.created_at).toLocaleDateString()}</p>
+          </div>
+        </div>
+        <div class="details">
+          <div>
+            <p><strong>Billed To:</strong></p>
+            <p>${tx.business_name || tx.client_name}</p>
+            <p>${tx.client_email}</p>
+          </div>
+          <div style="text-align: right;">
+            <p><strong>Provider:</strong></p>
+            <p>Trinity Pixels AI Pvt Ltd</p>
+            <p>support@trinitypixels.in</p>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Quantity</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Trinity Pixels AI Subscription - ${tx.plan_name.toUpperCase()}</td>
+              <td>${tx.minutes_purchased} Minutes</td>
+              <td>₹${tx.amount_inr.toLocaleString('en-IN')}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="total">Total: ₹${tx.amount_inr.toLocaleString('en-IN')}</div>
+        <div class="footer">
+          <p>This is a computer-generated invoice. No signature required.</p>
+          <p>Thank you for choosing Trinity Pixels!</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    res.send(html);
+  } catch (err) {
+    console.error('Invoice error:', err);
+    res.status(500).send('Failed to generate invoice');
+  }
+});
+
 module.exports = router;

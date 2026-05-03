@@ -87,4 +87,62 @@ router.patch('/knowledge-updates/:clientId/resolve', async (req, res) => {
   } catch(err) { console.error(err); res.status(500).json({ error:'Failed' }); }
 });
 
+// POST /api/admin/impersonate/:id — Login as client
+router.post('/impersonate/:id', async (req, res) => {
+  try {
+    const jwt = require('jsonwebtoken');
+    const result = await db.query('SELECT id, name, email, role FROM users WHERE id = $1', [req.params.id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    const client = result.rows[0];
+    const token = jwt.sign(
+      { id: client.id, email: client.email, role: client.role },
+      process.env.JWT_SECRET || 'your_jwt_secret_key_123',
+      { expiresIn: '1h' }
+    );
+
+    res.json({ token, client });
+  } catch (err) {
+    console.error('Impersonation error:', err);
+    res.status(500).json({ error: 'Failed to impersonate client' });
+  }
+});
+
+// GET /api/admin/analytics/trends — Get monthly growth stats
+router.get('/analytics/trends', async (req, res) => {
+  try {
+    const revenue = await db.query(`
+      SELECT 
+        to_char(created_at, 'Mon YYYY') as month,
+        sum(amount_inr) as total_revenue
+      FROM transactions 
+      WHERE status = 'captured' 
+      GROUP BY month, date_trunc('month', created_at)
+      ORDER BY date_trunc('month', created_at) DESC
+      LIMIT 6
+    `);
+
+    const usage = await db.query(`
+      SELECT 
+        to_char(call_timestamp, 'Mon YYYY') as month,
+        ceil(sum(call_duration_seconds)/60.0) as total_minutes
+      FROM call_leads 
+      GROUP BY month, date_trunc('month', call_timestamp)
+      ORDER BY date_trunc('month', call_timestamp) DESC
+      LIMIT 6
+    `);
+
+    res.json({
+      revenue: revenue.rows.reverse(),
+      usage: usage.rows.reverse()
+    });
+  } catch (err) {
+    console.error('Trends error:', err);
+    res.status(500).json({ error: 'Failed to fetch trends' });
+  }
+});
+
 module.exports = router;
