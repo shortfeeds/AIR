@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- =============================================
 -- 2. Client Profiles (Business Info from Intake)
@@ -38,8 +38,8 @@ CREATE TABLE IF NOT EXISTS client_profiles (
   UNIQUE(user_id)
 );
 
-CREATE INDEX idx_client_profiles_user ON client_profiles(user_id);
-CREATE INDEX idx_client_profiles_status ON client_profiles(onboarding_status);
+CREATE INDEX IF NOT EXISTS idx_client_profiles_user ON client_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_client_profiles_status ON client_profiles(onboarding_status);
 
 -- =============================================
 -- 3. Phone Numbers (Plivo Assignments)
@@ -52,8 +52,8 @@ CREATE TABLE IF NOT EXISTS phone_numbers (
   assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_phone_numbers_client ON phone_numbers(client_id);
-CREATE INDEX idx_phone_numbers_plivo ON phone_numbers(plivo_number);
+CREATE INDEX IF NOT EXISTS idx_phone_numbers_client ON phone_numbers(client_id);
+CREATE INDEX IF NOT EXISTS idx_phone_numbers_plivo ON phone_numbers(plivo_number);
 
 -- =============================================
 -- 4. Subscriptions (Plan & Minute Tracking)
@@ -70,8 +70,8 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   UNIQUE(client_id)
 );
 
-CREATE INDEX idx_subscriptions_client ON subscriptions(client_id);
-CREATE INDEX idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_client ON subscriptions(client_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
 
 -- =============================================
 -- 5. Call Leads (AI Call Records)
@@ -89,9 +89,9 @@ CREATE TABLE IF NOT EXISTS call_leads (
   recording_url VARCHAR(500)
 );
 
-CREATE INDEX idx_call_leads_client ON call_leads(client_id);
-CREATE INDEX idx_call_leads_timestamp ON call_leads(call_timestamp DESC);
-CREATE INDEX idx_call_leads_status ON call_leads(status);
+CREATE INDEX IF NOT EXISTS idx_call_leads_client ON call_leads(client_id);
+CREATE INDEX IF NOT EXISTS idx_call_leads_timestamp ON call_leads(call_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_call_leads_status ON call_leads(status);
 
 -- =============================================
 -- 6. Transactions (Payment History)
@@ -108,8 +108,8 @@ CREATE TABLE IF NOT EXISTS transactions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_transactions_client ON transactions(client_id);
-CREATE INDEX idx_transactions_status ON transactions(status);
+CREATE INDEX IF NOT EXISTS idx_transactions_client ON transactions(client_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
 
 -- =============================================
 -- 7. Knowledge Base (Per-Client AI Config)
@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
   UNIQUE(client_id)
 );
 
-CREATE INDEX idx_knowledge_base_client ON knowledge_base(client_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_base_client ON knowledge_base(client_id);
 
 -- =============================================
 -- 8. Global Settings (Plans & System Config)
