@@ -15,7 +15,7 @@ export default function AdminClients() {
   const [newPlan, setNewPlan] = useState("");
   const [changingPlan, setChangingPlan] = useState(false);
   const [addClientModal, setAddClientModal] = useState(false);
-  const [newClient, setNewClient] = useState({ name: "", email: "", password: "", business_name: "", plan_name: "silver", initial_minutes: 0 });
+  const [newClient, setNewClient] = useState({ name: "", email: "", password: "", business_name: "", plan_name: "silver", initial_minutes: 0, plivo_number: "" });
   const [creating, setCreating] = useState(false);
   const [pwModal, setPwModal] = useState<{ id: string; name: string } | null>(null);
   const [newPw, setNewPw] = useState("");
@@ -73,7 +73,7 @@ export default function AdminClients() {
       await api("/admin/clients", { method: "POST", body: JSON.stringify(newClient) });
       api("/admin/clients").then((d) => setClients(d.clients));
       setAddClientModal(false);
-      setNewClient({ name: "", email: "", password: "", business_name: "", plan_name: "silver", initial_minutes: 0 });
+      setNewClient({ name: "", email: "", password: "", business_name: "", plan_name: "silver", initial_minutes: 0, plivo_number: "" });
     } catch (e) { console.error(e); }
     finally { setCreating(false); }
   };
@@ -199,48 +199,65 @@ export default function AdminClients() {
 
       {/* Add Client Modal */}
       {addClientModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setAddClientModal(false)}>
-          <div className="card p-6 w-full max-w-md my-8" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Add New Client Account</h3>
-            <div className="space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 overflow-y-auto bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setAddClientModal(false)}>
+          <div className="card p-8 w-full max-w-xl my-auto shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-6">
+              <h3 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>Create Business Account</h3>
+              <p className="text-sm opacity-50">Manually provision a new client on the platform</p>
+            </div>
+            
+            <div className="space-y-5">
+              <div className="grid sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="text-[10px] font-bold uppercase opacity-40 mb-1 block">Full Name</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Full Name</label>
                   <input value={newClient.name} onChange={(e) => setNewClient({ ...newClient, name: e.target.value })} className="input-field" placeholder="John Doe" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase opacity-40 mb-1 block">Email Address</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Email Address</label>
                   <input type="email" value={newClient.email} onChange={(e) => setNewClient({ ...newClient, email: e.target.value })} className="input-field" placeholder="john@example.com" />
                 </div>
               </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase opacity-40 mb-1 block">Business Name</label>
-                <input value={newClient.business_name} onChange={(e) => setNewClient({ ...newClient, business_name: e.target.value })} className="input-field" placeholder="Acme Corp" />
+
+              <div className="grid sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Business Name</label>
+                  <input value={newClient.business_name} onChange={(e) => setNewClient({ ...newClient, business_name: e.target.value })} className="input-field" placeholder="Acme Corp" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Plivo Phone Number</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                    <input value={newClient.plivo_number} onChange={(e) => setNewClient({ ...newClient, plivo_number: e.target.value })} className="input-field pl-10" placeholder="+91..." />
+                  </div>
+                </div>
               </div>
+
               <div>
-                <label className="text-[10px] font-bold uppercase opacity-40 mb-1 block">Password</label>
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Account Password</label>
                 <input type="password" value={newClient.password} onChange={(e) => setNewClient({ ...newClient, password: e.target.value })} className="input-field" placeholder="••••••••" />
               </div>
-              <div className="grid sm:grid-cols-2 gap-4">
+
+              <div className="grid sm:grid-cols-2 gap-5 p-4 rounded-xl bg-white/5 border border-white/5">
                 <div>
-                  <label className="text-[10px] font-bold uppercase opacity-40 mb-1 block">Initial Plan</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Subscription Plan</label>
                   <select value={newClient.plan_name} onChange={(e) => setNewClient({ ...newClient, plan_name: e.target.value })} className="input-field">
-                    <option value="silver">Silver</option>
-                    <option value="gold">Gold</option>
-                    <option value="diamond">Diamond</option>
-                    <option value="platinum">Platinum</option>
+                    <option value="silver">Silver Plan</option>
+                    <option value="gold">Gold Plan</option>
+                    <option value="diamond">Diamond Plan</option>
+                    <option value="platinum">Platinum Plan</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase opacity-40 mb-1 block">Initial Minutes</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Prepaid Minutes</label>
                   <input type="number" value={newClient.initial_minutes} onChange={(e) => setNewClient({ ...newClient, initial_minutes: parseInt(e.target.value) })} className="input-field" placeholder="0" />
                 </div>
               </div>
             </div>
-            <div className="flex gap-2 mt-6">
-              <button onClick={() => setAddClientModal(false)} className="btn-secondary flex-1 text-sm">Cancel</button>
-              <button onClick={createClient} disabled={creating || !newClient.email || !newClient.password} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
-                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Account"}
+
+            <div className="flex gap-3 mt-8">
+              <button onClick={() => setAddClientModal(false)} className="btn-secondary flex-1">Discard</button>
+              <button onClick={createClient} disabled={creating || !newClient.email || !newClient.password} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Create Account <UserPlus className="w-4 h-4" /></>}
               </button>
             </div>
           </div>

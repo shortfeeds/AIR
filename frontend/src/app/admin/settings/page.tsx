@@ -67,12 +67,12 @@ export default function AdminSettings() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 block">Price (in Paise)</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 block">Price (in ₹ Rupees)</label>
                   <div className="relative">
                     <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
-                    <input type="number" value={plan.price} onChange={(e) => updatePlan(id, "price", parseInt(e.target.value))} className="input-field pl-10" />
+                    <input type="number" value={plan.price / 100} onChange={(e) => updatePlan(id, "price", Math.round(parseFloat(e.target.value) * 100))} className="input-field pl-10" />
                   </div>
-                  <p className="text-[10px] mt-1 opacity-40">₹{(plan.price / 100).toLocaleString()} INR</p>
+                  <p className="text-[10px] mt-1 opacity-40">Stored as {(plan.price).toLocaleString()} Paise</p>
                 </div>
               </div>
             </div>

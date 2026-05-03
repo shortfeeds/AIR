@@ -147,7 +147,7 @@ router.get('/analytics/trends', async (req, res) => {
 
 // POST /api/admin/clients — Create a new client manually
 router.post('/clients', async (req, res) => {
-  const { name, email, password, business_name, plan_name, initial_minutes } = req.body;
+  const { name, email, password, business_name, plan_name, initial_minutes, plivo_number } = req.body;
   const client = await db.getClient();
   try {
     const bcrypt = require('bcryptjs');
@@ -162,8 +162,15 @@ router.post('/clients', async (req, res) => {
 
     await client.query(
       'INSERT INTO client_profiles (user_id, business_name, onboarding_status) VALUES ($1, $2, $3)',
-      [userId, business_name, 'pending']
+      [userId, business_name, plivo_number ? 'active' : 'pending']
     );
+
+    if (plivo_number) {
+      await client.query(
+        'INSERT INTO phone_numbers (client_id, plivo_number) VALUES ($1, $2)',
+        [userId, plivo_number]
+      );
+    }
 
     await client.query(
       'INSERT INTO subscriptions (client_id, plan_name, available_minutes, total_minutes_purchased) VALUES ($1, $2, $3, $3)',
