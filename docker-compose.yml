@@ -16,11 +16,17 @@ services:
       retries: 5
     networks:
       - trinity_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     build: backend
     container_name: trinity_backend
     restart: always
+    init: true
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-trinity}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-trinitypixels}
       JWT_SECRET: ${JWT_SECRET}
@@ -37,6 +43,15 @@ services:
       - "4000:4000"
     networks:
       - trinity_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   frontend:
     build:
@@ -45,14 +60,25 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     container_name: trinity_frontend
     restart: always
+    init: true
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NODE_OPTIONS: "--max-old-space-size=1024"
     depends_on:
       - backend
     ports:
       - "3000:3000"
     networks:
       - trinity_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
 
   n8n:
     image: n8nio/n8n:latest
@@ -69,6 +95,15 @@ services:
       - n8n_data:/home/node/.n8n
     networks:
       - trinity_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
 volumes:
   postgres_data:
