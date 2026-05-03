@@ -145,4 +145,80 @@ router.get('/analytics/trends', async (req, res) => {
   }
 });
 
+// POST /api/admin/clients — Create a new client manually
+router.post('/clients', async (req, res) => {
+  const { name, email, password, business_name, plan_name, initial_minutes } = req.body;
+  const client = await db.getClient();
+  try {
+    const bcrypt = require('bcryptjs');
+    await client.query('BEGIN');
+    const hash = await bcrypt.hash(password, 10);
+    
+    const userRes = await client.query(
+      'INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id',
+      [name, email, hash, 'client']
+    );
+    const userId = userRes.rows[0].id;
+
+    await client.query(
+      'INSERT INTO client_profiles (user_id, business_name, onboarding_status) VALUES ($1, $2, $3)',
+      [userId, business_name, 'pending']
+    );
+
+    await client.query(
+      'INSERT INTO subscriptions (client_id, plan_name, available_minutes, total_minutes_purchased) VALUES ($1, $2, $3, $3)',
+      [userId, plan_name || 'silver', initial_minutes || 0]
+    );
+
+    await client.query(
+      'INSERT INTO knowledge_base (client_id) VALUES ($1)',
+      [userId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ message: 'Client created successfully', userId });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Manual client creation error:', err);
+    res.status(500).json({ error: 'Failed to create client' });
+  } finally {
+    client.release();
+  }
+});
+
+// PATCH /api/admin/clients/:id/password — Reset user password
+router.patch('/clients/:id/password', async (req, res) => {
+  try {
+    const { password } = req.body;
+    const bcrypt = require('bcryptjs');
+    const hash = await bcrypt.hash(password, 10);
+    await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.params.id]);
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('Password reset error:', err);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// GET /api/admin/settings/plans — Fetch global plans
+router.get('/settings/plans', async (req, res) => {
+  try {
+    const result = await db.query("SELECT value FROM global_settings WHERE key = 'plans'");
+    res.json({ plans: result.rows[0]?.value || {} });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch plans' });
+  }
+});
+
+// PATCH /api/admin/settings/plans — Update global plans
+router.patch('/settings/plans', async (req, res) => {
+  try {
+    const { plans } = req.body;
+    await db.query("UPDATE global_settings SET value = $1, updated_at = NOW() WHERE key = 'plans'", [JSON.stringify(plans)]);
+    res.json({ message: 'Plans updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update plans' });
+  }
+});
+
 module.exports = router;

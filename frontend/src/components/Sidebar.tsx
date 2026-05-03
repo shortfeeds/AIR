@@ -14,6 +14,7 @@ const adminNav = [
   { href: "/admin/clients", label: "Clients", icon: Users },
   { href: "/admin/onboarding", label: "Onboarding Queue", icon: FileText },
   { href: "/admin/knowledge", label: "KB Updates", icon: Bell },
+  { href: "/admin/settings", label: "System Settings", icon: Settings },
 ];
 
 export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {

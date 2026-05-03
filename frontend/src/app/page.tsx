@@ -382,17 +382,66 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-8 px-6" style={{ borderColor: "var(--border-subtle)" }}>
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded flex items-center justify-center" style={{ background: "var(--brand-600)" }}>
-              <Phone className="w-3 h-3 text-white" />
+      <footer className="border-t pt-20 pb-10 px-6" style={{ background: "var(--bg-secondary)", borderColor: "var(--border-subtle)" }}>
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12 mb-16">
+            <div className="col-span-2">
+              <Link href="/" className="flex items-center gap-2.5 mb-6">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20" style={{ background: "linear-gradient(135deg, var(--brand-600), var(--brand-400))" }}>
+                  <Phone className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-xl font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>Trinity Pixels</span>
+              </Link>
+              <p className="text-sm leading-relaxed max-w-xs mb-8" style={{ color: "var(--text-secondary)" }}>
+                The next generation of AI receptionists for Indian businesses. We help you capture 100% of your leads, even while you sleep.
+              </p>
+              <div className="flex gap-4">
+                {/* Social Placeholders */}
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="w-9 h-9 rounded-full border flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer" style={{ borderColor: "var(--border-subtle)" }}>
+                    <div className="w-4 h-4 bg-white/20 rounded-sm" />
+                  </div>
+                ))}
+              </div>
             </div>
-            <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Trinity Pixels</span>
+
+            <div>
+              <h4 className="font-bold text-sm uppercase tracking-widest mb-6" style={{ color: "var(--text-primary)" }}>Platform</h4>
+              <ul className="space-y-4 text-sm" style={{ color: "var(--text-secondary)" }}>
+                <li><Link href="/#features" className="hover:text-white transition-colors">Features</Link></li>
+                <li><Link href="/#pricing" className="hover:text-white transition-colors">Pricing</Link></li>
+                <li><Link href="/dashboard" className="hover:text-white transition-colors">Client Portal</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-sm uppercase tracking-widest mb-6" style={{ color: "var(--text-primary)" }}>Company</h4>
+              <ul className="space-y-4 text-sm" style={{ color: "var(--text-secondary)" }}>
+                <li><Link href="/about" className="hover:text-white transition-colors">About Us</Link></li>
+                <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+                <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-sm uppercase tracking-widest mb-6" style={{ color: "var(--text-primary)" }}>Support</h4>
+              <ul className="space-y-4 text-sm" style={{ color: "var(--text-secondary)" }}>
+                <li><Link href="/docs" className="hover:text-white transition-colors">Documentation</Link></li>
+                <li><Link href="/help" className="hover:text-white transition-colors">Help Center</Link></li>
+                <li style={{ color: "var(--brand-400)" }}>+91 7710884479</li>
+              </ul>
+            </div>
           </div>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            © 2026 Trinity Pixels. All rights reserved.
-          </p>
+
+          <div className="pt-8 border-t flex flex-col md:flex-row items-center justify-between gap-6" style={{ borderColor: "var(--border-subtle)" }}>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              © 2026 Trinity Pixels AI Pvt Ltd. All rights reserved.
+            </p>
+            <div className="flex gap-8 text-xs" style={{ color: "var(--text-muted)" }}>
+              <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> PCI DSS Compliant</span>
+              <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> ISO 27001 Certified</span>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

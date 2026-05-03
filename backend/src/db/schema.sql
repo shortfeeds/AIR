@@ -129,3 +129,21 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
 );
 
 CREATE INDEX idx_knowledge_base_client ON knowledge_base(client_id);
+
+-- =============================================
+-- 8. Global Settings (Plans & System Config)
+-- =============================================
+CREATE TABLE IF NOT EXISTS global_settings (
+  key VARCHAR(50) PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Seed default plans
+INSERT INTO global_settings (key, value) VALUES 
+('plans', '{
+  "silver": {"minutes": 200, "price": 299900, "label": "Silver"},
+  "gold": {"minutes": 500, "price": 499900, "label": "Gold"},
+  "diamond": {"minutes": 1000, "price": 799900, "label": "Diamond"},
+  "platinum": {"minutes": 2000, "price": 999900, "label": "Platinum"}
+}') ON CONFLICT (key) DO NOTHING;
