@@ -81,6 +81,7 @@ router.post('/post-call', async (req, res) => {
   } finally {
     client.release();
   }
+});
 // POST /api/plivo/fallback — SMS text-back if AI fails or call is missed
 router.post('/fallback', async (req, res) => {
   try {
