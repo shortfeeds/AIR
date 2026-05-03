@@ -121,6 +121,50 @@ router.patch('/knowledge-updates/:clientId/resolve', async (req, res) => {
   } catch(err) { console.error(err); res.status(500).json({ error:'Failed' }); }
 });
 
+// PATCH /api/admin/clients/:id — Update client details
+router.patch('/clients/:id', async (req, res) => {
+  const { name, email, business_name, onboarding_status } = req.body;
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    
+    if (name || email) {
+      await client.query(
+        'UPDATE users SET name = COALESCE($1, name), email = COALESCE($2, email) WHERE id = $3',
+        [name, email, req.params.id]
+      );
+    }
+
+    if (business_name || onboarding_status) {
+      await client.query(
+        'UPDATE client_profiles SET business_name = COALESCE($1, business_name), onboarding_status = COALESCE($2, onboarding_status) WHERE user_id = $3',
+        [business_name, onboarding_status, req.params.id]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'Client updated successfully' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Update client error:', err);
+    res.status(500).json({ error: 'Failed to update client' });
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE /api/admin/clients/:id — Delete a client account
+router.delete('/clients/:id', async (req, res) => {
+  try {
+    // Note: CASCADE on foreign keys in schema handles related records
+    await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Client deleted successfully' });
+  } catch (err) {
+    console.error('Delete client error:', err);
+    res.status(500).json({ error: 'Failed to delete client' });
+  }
+});
+
 // POST /api/admin/impersonate/:id — Login as client
 router.post('/impersonate/:id', async (req, res) => {
   try {
