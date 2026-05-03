@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { 
   Phone, Plus, Loader2, Settings, UserCircle, UserPlus, 
-  Edit2, Trash2, Search, Calendar, Zap, AlertTriangle, X
+  Edit2, Trash2, Search, Calendar, Zap, AlertTriangle, X, Layout, RefreshCw, ChevronDown
 } from "lucide-react";
 import Portal from "@/components/Portal";
 
@@ -26,8 +26,12 @@ export default function AdminClients() {
   const [newPlan, setNewPlan] = useState("");
   const [newClient, setNewClient] = useState({ name: "", email: "", password: "", business_name: "", plan_name: "silver", initial_minutes: 200, plivo_number: "" });
   
-  // Loading States
+  // Inventory States
   const [processing, setProcessing] = useState<string | null>(null);
+  const [ownedNumbers, setOwnedNumbers] = useState<any[]>([]);
+  const [availableNumbers, setAvailableNumbers] = useState<any[]>([]);
+  const [loadingInventory, setLoadingInventory] = useState(false);
+  const [showInventoryDropdown, setShowInventoryDropdown] = useState(false);
 
   useEffect(() => {
     fetchClients();
@@ -40,6 +44,24 @@ export default function AdminClients() {
       setClients(d.clients || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
+  };
+
+  const fetchOwnedNumbers = async () => {
+    setLoadingInventory(true);
+    try {
+      const data = await api("/admin/plivo/owned-numbers");
+      setOwnedNumbers(data.numbers || []);
+    } catch (e) { console.error(e); }
+    finally { setLoadingInventory(false); }
+  };
+
+  const fetchAvailableNumbers = async () => {
+    setLoadingInventory(true);
+    try {
+      const data = await api("/admin/plivo/available-numbers");
+      setAvailableNumbers(data.numbers || []);
+    } catch (e) { console.error(e); }
+    finally { setLoadingInventory(false); }
   };
 
   const handleAction = async (field: string, actionFn: () => Promise<void>) => {
@@ -290,7 +312,7 @@ export default function AdminClients() {
       {/* Add Client Modal */}
       {addClientModal && (
         <Portal>
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setAddClientModal(false)}>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => { setAddClientModal(false); setShowInventoryDropdown(false); }}>
             <div className="card p-8 w-full max-w-xl shadow-2xl relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-8">
                  <h3 className="text-2xl font-bold text-white">New Business Account</h3>
@@ -314,9 +336,55 @@ export default function AdminClients() {
                     <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Business Name</label>
                     <input value={newClient.business_name} onChange={(e) => setNewClient({ ...newClient, business_name: e.target.value })} className="input-field" placeholder="Acme Corp" />
                   </div>
-                  <div>
+                  <div className="relative">
                     <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Plivo Number</label>
-                    <input value={newClient.plivo_number} onChange={(e) => setNewClient({ ...newClient, plivo_number: e.target.value })} className="input-field" placeholder="+91..." />
+                    <div className="flex gap-2">
+                       <input value={newClient.plivo_number} onChange={(e) => setNewClient({ ...newClient, plivo_number: e.target.value })} className="input-field" placeholder="+91..." />
+                       <button 
+                        onClick={() => {
+                          if (!showInventoryDropdown) fetchOwnedNumbers();
+                          setShowInventoryDropdown(!showInventoryDropdown);
+                        }} 
+                        className="btn-ghost !p-2 border border-white/5 hover:bg-indigo-500/20 text-indigo-400" 
+                        title="Browse Owned Inventory"
+                       >
+                         {loadingInventory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layout className="w-4 h-4" />}
+                       </button>
+                    </div>
+
+                    {showInventoryDropdown && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1b23] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto animate-slide-up">
+                        <div className="p-2 border-b border-white/5 flex items-center justify-between sticky top-0 bg-[#1a1b23]">
+                          <span className="text-[9px] font-black uppercase tracking-widest opacity-30 px-1">Available Inventory</span>
+                          <button onClick={fetchOwnedNumbers} className="p-1 hover:bg-white/5 rounded"><RefreshCw className={`w-3 h-3 opacity-30 ${loadingInventory ? 'animate-spin' : ''}`} /></button>
+                        </div>
+                        {ownedNumbers.length === 0 && !loadingInventory ? (
+                          <p className="p-4 text-[10px] text-center opacity-30 italic">No numbers available in account.</p>
+                        ) : (
+                          ownedNumbers.map(n => (
+                            <button 
+                              key={n.number} 
+                              disabled={n.is_assigned}
+                              onClick={() => {
+                                setNewClient({...newClient, plivo_number: n.number});
+                                setShowInventoryDropdown(false);
+                              }}
+                              className={`w-full text-left p-3 hover:bg-white/5 flex items-center justify-between group transition-colors ${n.is_assigned ? 'opacity-30 cursor-not-allowed' : ''}`}
+                            >
+                              <div>
+                                <p className="text-xs font-bold text-white">{n.number}</p>
+                                <p className="text-[9px] opacity-40">{n.alias || "No alias"}</p>
+                              </div>
+                              {n.is_assigned ? (
+                                <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">ASSIGNED</span>
+                              ) : (
+                                <span className="text-[8px] font-black text-indigo-400 group-hover:text-white group-hover:bg-indigo-500 px-1.5 py-0.5 rounded transition-colors">SELECT</span>
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -359,11 +427,45 @@ export default function AdminClients() {
       {/* Assign Number Modal */}
       {assignModal && (
         <Portal>
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setAssignModal(null)}>
-            <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => { setAssignModal(null); setShowInventoryDropdown(false); }}>
+            <div className="card p-6 w-full max-w-sm relative" onClick={(e) => e.stopPropagation()}>
               <h3 className="font-bold text-white mb-4">Assign Number to {assignModal.name}</h3>
-              <div className="mb-4">
-                 <input value={plivoNumber} onChange={(e) => setPlivoNumber(e.target.value)} className="input-field" placeholder="+91..." />
+              <div className="relative mb-4">
+                 <div className="flex gap-2">
+                    <input value={plivoNumber} onChange={(e) => setPlivoNumber(e.target.value)} className="input-field" placeholder="+91..." />
+                    <button 
+                      onClick={() => {
+                        if (!showInventoryDropdown) fetchOwnedNumbers();
+                        setShowInventoryDropdown(!showInventoryDropdown);
+                      }} 
+                      className="btn-ghost !p-2 border border-white/5 text-indigo-400"
+                    >
+                      {loadingInventory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layout className="w-4 h-4" />}
+                    </button>
+                 </div>
+
+                 {showInventoryDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1b23] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto">
+                    <div className="p-2 border-b border-white/5 flex items-center justify-between sticky top-0 bg-[#1a1b23]">
+                      <span className="text-[9px] font-black uppercase tracking-widest opacity-30 px-1">Owned Inventory</span>
+                      <button onClick={fetchOwnedNumbers} className="p-1 hover:bg-white/5 rounded"><RefreshCw className={`w-3 h-3 opacity-30 ${loadingInventory ? 'animate-spin' : ''}`} /></button>
+                    </div>
+                    {ownedNumbers.map(n => (
+                      <button 
+                        key={n.number} 
+                        disabled={n.is_assigned}
+                        onClick={() => {
+                          setPlivoNumber(n.number);
+                          setShowInventoryDropdown(false);
+                        }}
+                        className={`w-full text-left p-3 hover:bg-white/5 flex items-center justify-between ${n.is_assigned ? 'opacity-30' : ''}`}
+                      >
+                        <span className="text-xs font-bold text-white">{n.number}</span>
+                        {!n.is_assigned && <span className="text-[8px] font-black text-indigo-400">SELECT</span>}
+                      </button>
+                    ))}
+                  </div>
+                 )}
               </div>
               <div className="flex gap-2">
                  <button onClick={() => setAssignModal(null)} className="btn-secondary flex-1 text-xs font-bold">Cancel</button>
