@@ -30,7 +30,11 @@ app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 // JSON parser for all other routes
 app.use(express.json());
 
-// Health check
+// Root and Health check
+app.get('/', (req, res) => {
+  res.json({ message: 'Trinity Pixels Backend API is running.', frontend: process.env.FRONTEND_URL || 'http://localhost:3000' });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'Trinity Pixels API', timestamp: new Date().toISOString() });
 });
