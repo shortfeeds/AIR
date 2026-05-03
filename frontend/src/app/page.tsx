@@ -298,7 +298,7 @@ export default function HomePage() {
               Call this number right now and speak to a real AI receptionist
             </p>
             <div className="text-3xl md:text-4xl font-bold mb-3" style={{ color: "var(--brand-300)" }}>
-              +91 XXXX-XXXX-XX
+              +91 7710884479
             </div>
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>
               It&apos;s answering for a sample business. Yours will be trained specifically on your services.
