@@ -28,9 +28,6 @@ export default function AdminClients() {
   
   // Loading States
   const [processing, setProcessing] = useState<string | null>(null);
-  const [ownedNumbers, setOwnedNumbers] = useState<any[]>([]);
-  const [searchingNumbers, setSearchingNumbers] = useState(false);
-  const [showInventory, setShowInventory] = useState(false);
 
   useEffect(() => {
     fetchClients();
@@ -43,26 +40,6 @@ export default function AdminClients() {
       setClients(d.clients || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  };
-
-  const fetchAvailableNumbers = async () => {
-    setSearchingNumbers(true);
-    setShowInventory(false);
-    try {
-      const data = await api("/admin/plivo/available-numbers");
-      setAvailableNumbers(data.numbers || []);
-    } catch (e) { console.error(e); }
-    finally { setSearchingNumbers(false); }
-  };
-
-  const fetchOwnedNumbers = async () => {
-    setSearchingNumbers(true);
-    setShowInventory(true);
-    try {
-      const data = await api("/admin/plivo/owned-numbers");
-      setOwnedNumbers(data.numbers || []);
-    } catch (e) { console.error(e); }
-    finally { setSearchingNumbers(false); }
   };
 
   const handleAction = async (field: string, actionFn: () => Promise<void>) => {
