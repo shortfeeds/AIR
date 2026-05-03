@@ -13,16 +13,17 @@ async function initDatabase() {
     console.log('✅ Schema created successfully');
 
     // Create admin user with proper hash
-    const adminPassword = 'admin123';
+    const adminPassword = 'TP@2026%';
     const hash = await bcrypt.hash(adminPassword, 10);
 
+    await db.query('DELETE FROM users WHERE email = $1', ['admin@trinitypixels.in']);
     await db.query(
       `INSERT INTO users (name, email, password_hash, role)
        VALUES ($1, $2, $3, $4)
-       ON CONFLICT (email) DO UPDATE SET password_hash = $3`,
-      ['Trinity Admin', 'admin@trinitypixels.in', hash, 'admin']
+       ON CONFLICT (email) DO UPDATE SET password_hash = $3, name = $1`,
+      ['Trinity Admin', 'ai@trinitypixels.com', hash, 'admin']
     );
-    console.log('✅ Admin user created (admin@trinitypixels.in / admin123)');
+    console.log('✅ Admin user created (ai@trinitypixels.com / TP@2026%)');
 
     console.log('🎉 Database initialization complete!');
     process.exit(0);
