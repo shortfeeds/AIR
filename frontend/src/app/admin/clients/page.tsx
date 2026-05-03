@@ -15,7 +15,15 @@ export default function AdminClients() {
   const [newPlan, setNewPlan] = useState("");
   const [changingPlan, setChangingPlan] = useState(false);
   const [addClientModal, setAddClientModal] = useState(false);
-  const [newClient, setNewClient] = useState({ name: "", email: "", password: "", business_name: "", plan_name: "silver", initial_minutes: 0, plivo_number: "" });
+  const PLAN_MINUTES: Record<string, number> = {
+    free_trial: 15,
+    trial: 15,
+    silver: 200,
+    gold: 500,
+    diamond: 1000,
+    platinum: 2000
+  };
+  const [newClient, setNewClient] = useState({ name: "", email: "", password: "", business_name: "", plan_name: "silver", initial_minutes: 200, plivo_number: "" });
   const [creating, setCreating] = useState(false);
   const [pwModal, setPwModal] = useState<{ id: string; name: string } | null>(null);
   const [newPw, setNewPw] = useState("");
@@ -218,8 +226,8 @@ export default function AdminClients() {
 
       {/* Add Client Modal */}
       {addClientModal && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 overflow-y-auto bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setAddClientModal(false)}>
-          <div className="card p-8 w-full max-w-xl my-auto shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setAddClientModal(false)}>
+          <div className="card p-8 w-full max-w-xl shadow-2xl relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="mb-6">
               <h3 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>Create Business Account</h3>
               <p className="text-sm opacity-50">Manually provision a new client on the platform</p>
@@ -259,7 +267,17 @@ export default function AdminClients() {
               <div className="grid sm:grid-cols-2 gap-5 p-4 rounded-xl bg-white/5 border border-white/5">
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Subscription Plan</label>
-                  <select value={newClient.plan_name} onChange={(e) => setNewClient({ ...newClient, plan_name: e.target.value })} className="input-field">
+                  <select 
+                    value={newClient.plan_name} 
+                    onChange={(e) => setNewClient({ 
+                      ...newClient, 
+                      plan_name: e.target.value, 
+                      initial_minutes: PLAN_MINUTES[e.target.value] || 0 
+                    })} 
+                    className="input-field"
+                  >
+                    <option value="free_trial">Free Trial (15 Mins)</option>
+                    <option value="trial">Paid Trial (15 Mins)</option>
                     <option value="silver">Silver Plan</option>
                     <option value="gold">Gold Plan</option>
                     <option value="diamond">Diamond Plan</option>
