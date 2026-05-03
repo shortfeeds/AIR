@@ -18,7 +18,7 @@ services:
       - trinity_network
 
   backend:
-    image: ghcr.io/shortfeeds/air/backend:latest
+    build: backend
     container_name: trinity_backend
     restart: always
     environment:
@@ -39,7 +39,7 @@ services:
       - trinity_network
 
   frontend:
-    image: ghcr.io/shortfeeds/air/frontend:latest
+    build: frontend
     container_name: trinity_frontend
     restart: always
     environment:
