@@ -140,14 +140,27 @@ export default function RecordingsPage() {
                             </div>
                             <div>
                               <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5">Sentiment</p>
-                              <span className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-500/20 inline-block">
-                                Professional
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border inline-block capitalize ${
+                                lead.sentiment === 'positive' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' :
+                                lead.sentiment === 'negative' ? 'text-rose-400 bg-rose-500/10 border-rose-500/20' :
+                                'text-indigo-400 bg-indigo-500/10 border-indigo-500/20'
+                              }`}>
+                                {lead.sentiment || 'Neutral'}
                               </span>
                             </div>
                           </div>
                         </div>
                         <div className="flex-1">
-                          <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-3">AI Context Summary</p>
+                           <div className="flex items-center justify-between mb-3">
+                             <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">AI Context Summary</p>
+                             <div className="flex items-center gap-1.5">
+                               <span className="text-[10px] font-bold opacity-30 uppercase tracking-widest">Lead Score</span>
+                               <span className={`text-xs font-black ${
+                                 (lead.lead_score || 0) > 70 ? 'text-emerald-400' :
+                                 (lead.lead_score || 0) > 40 ? 'text-amber-400' : 'text-white/40'
+                               }`}>{lead.lead_score || 0}</span>
+                             </div>
+                           </div>
                           <div className="bg-white/5 p-4 rounded-xl border border-white/5 text-xs leading-relaxed opacity-80 italic">
                             {lead.ai_summary}
                           </div>

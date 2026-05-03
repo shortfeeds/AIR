@@ -151,37 +151,61 @@ export default function DashboardOverview() {
           ) : leads.map((lead) => (
             <div key={lead.id} className={`transition-all ${expandedId === lead.id ? "bg-white/[0.02]" : "hover:bg-white/[0.01]"}`}>
               <div className="p-4 sm:p-6 cursor-pointer flex items-center justify-between" onClick={() => setExpandedId(expandedId === lead.id ? null : lead.id)}>
-                <div className="flex items-center gap-4 min-w-[200px]">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${lead.status === "new" ? "bg-indigo-500 animate-pulse shadow-[0_0_10px_rgba(99,102,241,0.5)]" : "bg-white/10"}`} />
-                  <div>
-                    <p className="font-bold text-sm tracking-wide text-white">{lead.caller_number}</p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider mt-1 opacity-40">{new Date(lead.call_timestamp).toLocaleString("en-IN", { dateStyle: 'medium', timeStyle: 'short' })}</p>
-                  </div>
-                </div>
-                
-                <div className="hidden sm:block flex-1 mx-8 max-w-xl">
-                  <div className="bg-black/20 rounded-lg px-4 py-2 border border-white/5">
-                    <p className="text-xs truncate opacity-70 italic font-medium">&quot;{lead.ai_summary || "Call completed without summary."}&quot;</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-6 min-w-[120px] justify-end">
-                  <div className="flex flex-col items-end">
-                    <span className="text-xs font-bold text-white">{Math.floor(lead.call_duration_seconds / 60)}m {lead.call_duration_seconds % 60}s</span>
-                    <span className="text-[10px] uppercase font-bold tracking-widest opacity-30 mt-0.5">Duration</span>
-                  </div>
-                  <ArrowRight className={`w-4 h-4 transition-transform text-white/30 ${expandedId === lead.id ? "rotate-90 text-white" : ""}`} />
-                </div>
-              </div>
-              
-              {expandedId === lead.id && (
-                <div className="px-6 pb-6 pt-2 animate-slide-down">
-                  <div className="grid lg:grid-cols-12 gap-6 bg-black/40 rounded-2xl p-6 border border-white/5">
-                    <div className="lg:col-span-5 space-y-6">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 flex items-center gap-2"><Activity className="w-3 h-3" /> AI Summary</p>
-                        <p className="text-sm leading-relaxed font-medium text-white/80 bg-white/5 p-4 rounded-xl border border-white/5">{lead.ai_summary || "No summary available."}</p>
+                  <div className="flex items-center gap-4 min-w-[200px]">
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${lead.status === "new" ? "bg-indigo-500 animate-pulse shadow-[0_0_10px_rgba(99,102,241,0.5)]" : "bg-white/10"}`} />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-sm tracking-wide text-white">{lead.caller_number}</p>
+                        {(lead.lead_score || 0) >= 70 && (
+                          <span className="text-[8px] font-black uppercase tracking-widest bg-emerald-500 text-white px-1.5 py-0.5 rounded shadow-[0_0_10px_rgba(16,185,129,0.3)]">High Intent</span>
+                        )}
                       </div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider mt-1 opacity-40">{new Date(lead.call_timestamp).toLocaleString("en-IN", { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="hidden sm:block flex-1 mx-8 max-w-xl">
+                    <div className="bg-black/20 rounded-lg px-4 py-2 border border-white/5 flex items-center justify-between gap-4">
+                      <p className="text-xs truncate opacity-70 italic font-medium">&quot;{lead.ai_summary || "Call completed without summary."}&quot;</p>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-tighter ${
+                        lead.sentiment === 'positive' ? 'text-emerald-400 border-emerald-500/20' :
+                        lead.sentiment === 'negative' ? 'text-rose-400 border-rose-500/20' :
+                        'text-indigo-400 border-indigo-500/20'
+                      }`}>
+                        {lead.sentiment || 'Neutral'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-6 min-w-[120px] justify-end">
+                    <div className="flex flex-col items-end">
+                      <div className="flex items-center gap-1.5">
+                         <span className="text-xs font-bold text-white">{Math.floor(lead.call_duration_seconds / 60)}m {lead.call_duration_seconds % 60}s</span>
+                         <span className={`text-[10px] font-black px-1 rounded ${
+                            (lead.lead_score || 0) >= 70 ? 'bg-emerald-500/10 text-emerald-400' :
+                            (lead.lead_score || 0) >= 40 ? 'bg-amber-500/10 text-amber-400' : 'text-white/10'
+                         }`}>{lead.lead_score || 0}</span>
+                      </div>
+                      <span className="text-[10px] uppercase font-bold tracking-widest opacity-30 mt-0.5">Duration & Score</span>
+                    </div>
+                    <ArrowRight className={`w-4 h-4 transition-transform text-white/30 ${expandedId === lead.id ? "rotate-90 text-white" : ""}`} />
+                  </div>
+                </div>
+                
+                {expandedId === lead.id && (
+                  <div className="px-6 pb-6 pt-2 animate-slide-down">
+                    <div className="grid lg:grid-cols-12 gap-6 bg-black/40 rounded-2xl p-6 border border-white/5">
+                      <div className="lg:col-span-5 space-y-6">
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 flex items-center gap-2"><Activity className="w-3 h-3" /> AI Summary</p>
+                            <div className="flex items-center gap-3">
+                               <div className="text-[10px] font-bold opacity-30 uppercase tracking-widest">Sentiment: <span className="text-white ml-1 opacity-100">{lead.sentiment || 'Neutral'}</span></div>
+                               <div className="text-[10px] font-bold opacity-30 uppercase tracking-widest">Intent: <span className="text-white ml-1 opacity-100">{lead.lead_score || 0}%</span></div>
+                            </div>
+                          </div>
+                          <p className="text-sm leading-relaxed font-medium text-white/80 bg-white/5 p-4 rounded-xl border border-white/5">{lead.ai_summary || "No summary available."}</p>
+                        </div>
                       
                       <div className="flex gap-4">
                         <div className="flex-1">

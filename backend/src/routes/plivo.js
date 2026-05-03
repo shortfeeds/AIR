@@ -61,12 +61,31 @@ router.post('/post-call', async (req, res) => {
 
     const { client_id: clientId, n8n_webhook_url: webhookUrl, business_name: businessName, crm_type: crmType, crm_webhook_url: crmWebhookUrl } = pn.rows[0];
     const minutesToDeduct = Math.ceil(duration_seconds / 60);
+    // --- PHASE 2: Intelligent Lead Scoring & Sentiment ---
+    let leadScore = 0;
+    let sentiment = 'neutral';
+    const text = (transcript + ' ' + ai_summary + ' ' + action_taken).toLowerCase();
+    
+    // Scoring logic
+    if (duration_seconds > 60) leadScore += 30;
+    if (duration_seconds > 180) leadScore += 20;
+    const hotKeywords = ['book', 'appointment', 'price', 'cost', 'visit', 'buy', 'address', 'location'];
+    if (hotKeywords.some(k => text.includes(k))) leadScore += 40;
+    if (action_taken && action_taken !== 'None') leadScore += 10;
+    leadScore = Math.min(leadScore, 100);
+
+    // Sentiment logic
+    const pos = ['thanks', 'great', 'good', 'helpful', 'perfect', 'awesome', 'yes'];
+    const neg = ['bad', 'angry', 'complaint', 'worst', 'useless', 'no', 'stop'];
+    if (pos.some(k => text.includes(k))) sentiment = 'positive';
+    if (neg.some(k => text.includes(k))) sentiment = 'negative';
+    // -----------------------------------------------------
 
     // Insert call lead
     await client.query(
-      `INSERT INTO call_leads (client_id, caller_number, call_duration_seconds, ai_summary, transcript_raw, action_taken, recording_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [clientId, caller_number, duration_seconds, ai_summary || '', transcript || '', action_taken || '', recording_url || '']
+      `INSERT INTO call_leads (client_id, caller_number, call_duration_seconds, ai_summary, transcript_raw, action_taken, recording_url, lead_score, sentiment)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [clientId, caller_number, duration_seconds, ai_summary || '', transcript || '', action_taken || '', recording_url || '', leadScore, sentiment]
     );
 
     // Deduct minutes
@@ -77,7 +96,7 @@ router.post('/post-call', async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Trigger WhatsApp/n8n Notification if webhook exists
+    // Trigger WhatsApp Notification for BUSINESS (New Lead)
     if (webhookUrl) {
       fetch(webhookUrl, {
         method: 'POST',
@@ -88,9 +107,24 @@ router.post('/post-call', async (req, res) => {
           caller: caller_number,
           summary: ai_summary,
           action: action_taken,
-          recording: recording_url
+          recording: recording_url,
+          lead_score: leadScore,
+          sentiment: sentiment
         })
-      }).catch(e => console.error('n8n notification failed:', e.message));
+      }).catch(e => console.error('n8n business notification failed:', e.message));
+
+      // --- PHASE 2: Trigger WhatsApp Follow-up for CALLER ---
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'post_call_followup_caller',
+          business_name: businessName,
+          caller: caller_number,
+          summary: ai_summary,
+          action: action_taken
+        })
+      }).catch(e => console.error('n8n caller follow-up failed:', e.message));
     }
 
     // Trigger CRM Sync if configured
@@ -129,22 +163,35 @@ router.post('/post-call', async (req, res) => {
 // POST /api/plivo/fallback — SMS text-back if AI fails or call is missed
 router.post('/fallback', async (req, res) => {
   try {
-    const { From, To } = req.body; // Plivo sends From (caller) and To (business number)
+    const { From, To } = req.body; 
 
-    // Find the business name to make the SMS personal
     const biz = await db.query(
-      `SELECT cp.business_name FROM phone_numbers pn 
+      `SELECT cp.business_name, cp.n8n_webhook_url FROM phone_numbers pn 
        JOIN client_profiles cp ON cp.user_id = pn.client_id 
        WHERE pn.plivo_number = $1`, [To]
     );
 
     const businessName = biz.rows[0]?.business_name || "us";
+    const webhookUrl = biz.rows[0]?.n8n_webhook_url;
 
-    // Plivo XML to send SMS
+    // Trigger Missed Call Alert for Business
+    if (webhookUrl) {
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'missed_call_alert',
+          business_name: businessName,
+          caller: From
+        })
+      }).catch(e => console.error('Missed call alert failed:', e.message));
+    }
+
+    // Plivo XML to send SMS to Caller
     res.type('text/xml').send(`
       <Response>
         <Message from="${To}" to="${From}">
-          Hi, you just called ${businessName}. Our AI lines are currently busy, but how can we help you via text?
+          Hi, you just called ${businessName}. Our AI lines are currently busy, but we've logged your call and will get back to you shortly!
         </Message>
       </Response>
     `);

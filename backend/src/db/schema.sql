@@ -89,7 +89,9 @@ CREATE TABLE IF NOT EXISTS call_leads (
   transcript_raw TEXT,
   action_taken VARCHAR(100),
   recording_url VARCHAR(500),
-  used_prompt CHAR(1) DEFAULT 'A'
+  used_prompt CHAR(1) DEFAULT 'A',
+  lead_score INTEGER DEFAULT 0,
+  sentiment VARCHAR(20) DEFAULT 'neutral'
 );
 
 CREATE INDEX IF NOT EXISTS idx_call_leads_client ON call_leads(client_id);
