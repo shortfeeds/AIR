@@ -48,13 +48,38 @@ router.get('/clients/:id', async (req, res) => {
   } catch(err) { console.error(err); res.status(500).json({ error:'Failed' }); }
 });
 
+// POST /api/admin/clients/:id/assign-number — Assign or Buy a Plivo number
 router.post('/clients/:id/assign-number', async (req, res) => {
+  const { plivo_number, buy = false } = req.body;
+  const client = await db.getClient();
   try {
-    const { plivo_number } = req.body;
-    await db.query(`INSERT INTO phone_numbers(client_id,plivo_number) VALUES($1,$2) ON CONFLICT(plivo_number) DO UPDATE SET client_id=$1,is_active=true,assigned_at=NOW()`,[req.params.id,plivo_number]);
-    await db.query(`UPDATE client_profiles SET onboarding_status='active' WHERE user_id=$1`,[req.params.id]);
-    res.json({ message:'Number assigned, client activated' });
-  } catch(err) { console.error(err); res.status(500).json({ error:'Failed' }); }
+    await client.query('BEGIN');
+
+    if (buy && process.env.PLIVO_AUTH_ID && process.env.PLIVO_AUTH_TOKEN) {
+      const plivo = require('plivo');
+      const plivoClient = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
+      await plivoClient.numbers.buy(plivo_number, { app_id: process.env.PLIVO_APP_ID || '' });
+    }
+
+    await client.query(
+      'INSERT INTO phone_numbers (client_id, plivo_number, is_active) VALUES ($1, $2, true) ON CONFLICT (plivo_number) DO UPDATE SET client_id = $1, is_active = true',
+      [req.params.id, plivo_number]
+    );
+
+    await client.query(
+      'UPDATE client_profiles SET onboarding_status = \'active\' WHERE user_id = $1',
+      [req.params.id]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Assign number error:', err);
+    res.status(500).json({ error: 'Failed to assign number' });
+  } finally {
+    client.release();
+  }
 });
 
 router.post('/clients/:id/add-minutes', async (req, res) => {
@@ -249,6 +274,26 @@ router.patch('/settings/plans', async (req, res) => {
     res.json({ message: 'Plans updated successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update plans' });
+  }
+});
+
+// GET /api/admin/plivo/available-numbers — Fetch numbers from Plivo account
+router.get('/plivo/available-numbers', async (req, res) => {
+  try {
+    if (!process.env.PLIVO_AUTH_ID || !process.env.PLIVO_AUTH_TOKEN) {
+      return res.status(501).json({ error: 'Plivo not configured' });
+    }
+
+    const plivo = require('plivo');
+    const client = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
+    
+    // Search for available numbers to rent in India
+    const numbers = await client.numbers.search('IN', { limit: 20 });
+    
+    res.json({ numbers });
+  } catch (err) {
+    console.error('Plivo search error:', err);
+    res.status(500).json({ error: 'Failed to fetch numbers from Plivo' });
   }
 });
 

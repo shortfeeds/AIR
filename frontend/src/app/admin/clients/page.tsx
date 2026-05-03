@@ -31,6 +31,17 @@ export default function AdminClients() {
   const [resetting, setResetting] = useState(false);
   const [abModal, setAbModal] = useState<{ id: string; name: string; promptB: string; abActive: boolean } | null>(null);
   const [savingAb, setSavingAb] = useState(false);
+  const [availableNumbers, setAvailableNumbers] = useState<any[]>([]);
+  const [searchingNumbers, setSearchingNumbers] = useState(false);
+
+  const fetchAvailableNumbers = async () => {
+    setSearchingNumbers(true);
+    try {
+      const data = await api("/admin/plivo/available-numbers");
+      setAvailableNumbers(data.numbers || []);
+    } catch (e) { console.error(e); }
+    finally { setSearchingNumbers(false); }
+  };
 
   const saveAbTest = async () => {
     if (!abModal) return;
@@ -177,13 +188,31 @@ export default function AdminClients() {
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setAssignModal(null)}>
             <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
               <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Assign Plivo Number to {assignModal.name}</h3>
-              <input value={plivoNumber} onChange={(e) => setPlivoNumber(e.target.value)} className="input-field mb-4" placeholder="+91 XXXX XXXX XX" />
-              <div className="flex gap-2">
-                <button onClick={() => setAssignModal(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
-                <button onClick={assignNumber} disabled={assigning} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
-                  {assigning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Assign"}
-                </button>
+            <div className="flex gap-2 mb-4">
+              <input value={plivoNumber} onChange={(e) => setPlivoNumber(e.target.value)} className="input-field flex-1" placeholder="+91 XXXX XXXX XX" />
+              <button onClick={fetchAvailableNumbers} className="btn-ghost !p-2" title="Search Available Numbers">
+                {searchingNumbers ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              </button>
+            </div>
+
+            {availableNumbers.length > 0 && (
+              <div className="mb-4 max-h-40 overflow-y-auto border border-white/5 rounded-lg bg-white/5 p-2">
+                <p className="text-[10px] uppercase font-bold opacity-40 mb-2 px-1">Available to Buy (+91)</p>
+                {availableNumbers.map((num) => (
+                  <button key={num.number} onClick={() => { setPlivoNumber(num.number); setAvailableNumbers([]); }} className="w-full text-left p-2 text-xs hover:bg-indigo-500/20 rounded transition-colors flex justify-between items-center">
+                    <span>{num.number}</span>
+                    <span className="text-[8px] bg-indigo-500/30 px-1 rounded">SELECT</span>
+                  </button>
+                ))}
               </div>
+            )}
+
+            <div className="flex gap-2">
+              <button onClick={() => { setAssignModal(null); setAvailableNumbers([]); }} className="btn-secondary flex-1 text-sm">Cancel</button>
+              <button onClick={() => assignNumber()} disabled={assigning} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
+                {assigning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Assign"}
+              </button>
+            </div>
             </div>
           </div>
         </Portal>
@@ -260,10 +289,25 @@ export default function AdminClients() {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Plivo Phone Number</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
-                    <input value={newClient.plivo_number} onChange={(e) => setNewClient({ ...newClient, plivo_number: e.target.value })} className="input-field pl-10" placeholder="+91..." />
+                  <div className="relative flex gap-2">
+                    <div className="relative flex-1">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                      <input value={newClient.plivo_number} onChange={(e) => setNewClient({ ...newClient, plivo_number: e.target.value })} className="input-field pl-10" placeholder="+91..." />
+                    </div>
+                    <button onClick={fetchAvailableNumbers} type="button" className="btn-ghost !p-2 border border-white/5" title="Search available numbers">
+                      {searchingNumbers ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    </button>
                   </div>
+                  {availableNumbers.length > 0 && (
+                    <div className="mt-2 max-h-32 overflow-y-auto border border-white/5 rounded-lg bg-white/5 p-2 animate-slide-down">
+                      {availableNumbers.map((num) => (
+                        <button key={num.number} type="button" onClick={() => { setNewClient({ ...newClient, plivo_number: num.number }); setAvailableNumbers([]); }} className="w-full text-left p-2 text-xs hover:bg-indigo-500/20 rounded flex justify-between items-center transition-all">
+                          <span>{num.number}</span>
+                          <span className="text-[8px] bg-green-500/20 text-green-400 px-1 rounded uppercase font-bold">Pick</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
