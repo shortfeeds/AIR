@@ -13,6 +13,10 @@ const adminRoutes = require('./routes/admin');
 const plivoRoutes = require('./routes/plivo');
 const agentRoutes = require('./routes/agent');
 const demoRoutes = require('./routes/demo');
+const alertsRoutes = require('./routes/alerts');
+const cron = require('node-cron');
+const db = require('./db/pool');
+
 require('./cron/weeklyReport');
 
 const app = express();
@@ -48,6 +52,41 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/plivo', plivoRoutes);
+app.use('/api/alerts', alertsRoutes);
+
+// Proactive Monitoring Cron (Every 30 mins)
+cron.schedule('*/30 * * * *', async () => {
+  console.log('⏰ Running low balance monitor...');
+  try {
+    const clients = await db.query(
+      `SELECT s.client_id, s.available_minutes, u.email, cp.n8n_webhook_url, cp.business_name
+       FROM subscriptions s
+       JOIN users u ON u.id = s.client_id
+       JOIN client_profiles cp ON cp.user_id = u.id
+       WHERE s.available_minutes < 50 AND s.status = 'active'`
+    );
+
+    for (const client of clients.rows) {
+      if (client.n8n_webhook_url) {
+        // We only alert for specific thresholds to avoid spamming
+        if ([49, 48, 20, 19, 5, 4, 0].includes(client.available_minutes)) {
+           fetch(client.n8n_webhook_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'low_balance_alert',
+              business_name: client.business_name,
+              minutes_left: client.available_minutes,
+              email: client.email
+            })
+          }).catch(e => console.error(`Alert failed for ${client.email}:`, e.message));
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Monitor error:', err);
+  }
+});
 
 // Global error handler
 app.use((err, req, res, next) => {

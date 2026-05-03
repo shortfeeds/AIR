@@ -93,4 +93,54 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
+// GET /api/leads/analytics — Get historical trends for charts
+router.get('/analytics', auth, async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    
+    // 1. Daily call volume for trends chart
+    const dailyVolume = await db.query(
+      `SELECT 
+        DATE(call_timestamp) as date,
+        COUNT(*) as count,
+        CEIL(SUM(call_duration_seconds)::float / 60) as minutes
+       FROM call_leads
+       WHERE client_id = $1 AND call_timestamp > NOW() - INTERVAL '1 day' * $2
+       GROUP BY DATE(call_timestamp)
+       ORDER BY DATE(call_timestamp) ASC`,
+      [req.user.id, days]
+    );
+
+    // 2. Hourly distribution for peak hours heatmap
+    const hourlyDistribution = await db.query(
+      `SELECT 
+        EXTRACT(HOUR FROM call_timestamp) as hour,
+        COUNT(*) as count
+       FROM call_leads
+       WHERE client_id = $1 AND call_timestamp > NOW() - INTERVAL '1 day' * $2
+       GROUP BY hour
+       ORDER BY hour ASC`,
+      [req.user.id, days]
+    );
+
+    // 3. Status breakdown for conversion funnel
+    const statusBreakdown = await db.query(
+      `SELECT status, COUNT(*) as count
+       FROM call_leads
+       WHERE client_id = $1 AND call_timestamp > NOW() - INTERVAL '1 day' * $2
+       GROUP BY status`,
+      [req.user.id, days]
+    );
+
+    res.json({
+      daily: dailyVolume.rows,
+      hourly: hourlyDistribution.rows,
+      status: statusBreakdown.rows
+    });
+  } catch (err) {
+    console.error('Analytics error:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
 module.exports = router;

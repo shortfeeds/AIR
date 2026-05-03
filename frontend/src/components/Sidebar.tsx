@@ -1,10 +1,12 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CreditCard, Settings, Phone, Shield, Users, FileText, Bell } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, Phone, Shield, Users, FileText, Bell, TrendingUp } from "lucide-react";
 
 const clientNav = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/dashboard/analytics", label: "Analytics", icon: TrendingUp },
+  { href: "/dashboard/recordings", label: "Call Records", icon: Phone },
   { href: "/dashboard/usage", label: "Usage & Billing", icon: CreditCard },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];

@@ -16,19 +16,22 @@ interface UserData {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<UserData | null>(null);
+  const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
 
-    api("/auth/me")
-      .then((data) => {
-        if (data.user.role === "admin") { router.push("/admin"); return; }
-        setUser(data.user);
-        setLoading(false);
-      })
-      .catch(() => { router.push("/login"); });
+    Promise.all([
+      api("/auth/me"),
+      api("/alerts")
+    ]).then(([userData, alertsData]) => {
+      if (userData.user.role === "admin") { router.push("/admin"); return; }
+      setUser(userData.user);
+      setAlerts(alertsData.alerts || []);
+      setLoading(false);
+    }).catch(() => { router.push("/login"); });
   }, [router]);
 
   if (loading) {
@@ -43,6 +46,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-primary)" }}>
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Global Alert Banner */}
+        {alerts.length > 0 && (
+          <div className={`px-6 py-2 flex items-center justify-between gap-4 animate-slide-down ${
+            alerts[0].type === 'danger' ? 'bg-rose-500 text-white' : 
+            alerts[0].type === 'warning' ? 'bg-amber-500 text-black' : 
+            'bg-indigo-500 text-white'
+          }`}>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-black uppercase tracking-tighter bg-white/20 px-1.5 py-0.5 rounded leading-none">Alert</span>
+              <p className="text-xs font-bold truncate">{alerts[0].message}</p>
+            </div>
+            <button 
+              onClick={() => router.push(alerts[0].action_link)}
+              className="text-[10px] font-black uppercase tracking-widest bg-black/10 hover:bg-black/20 px-3 py-1 rounded-full transition-colors whitespace-nowrap"
+            >
+              {alerts[0].action_label}
+            </button>
+          </div>
+        )}
         <Topbar userName={user?.name} planName={user?.plan_name} availableMinutes={user?.available_minutes} plivoNumber={user?.plivo_number} />
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           {children}
