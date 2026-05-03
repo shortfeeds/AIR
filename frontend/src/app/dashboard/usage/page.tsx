@@ -45,6 +45,7 @@ export default function UsagePage() {
   const [recharging, setRecharging] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [upgradeModal, setUpgradeModal] = useState<any>(null);
+  const [calculating, setCalculating] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -110,7 +111,7 @@ export default function UsagePage() {
         body: JSON.stringify({ targetPlan: planId })
       });
       setUpgradeModal(data);
-    } catch (e) {
+    } catch {
       alert("Failed to calculate upgrade.");
     } finally {
       setCalculating(false);

@@ -28,7 +28,6 @@ export default function SettingsPage() {
   const [gstin, setGstin] = useState("");
   const [crmType, setCrmType] = useState("none");
   const [crmWebhookUrl, setCrmWebhookUrl] = useState("");
-  const [updateNotes, setUpdateNotes] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
@@ -59,18 +58,6 @@ export default function SettingsPage() {
       await api(endpoint, { method: "PATCH", body: JSON.stringify(body) });
       setSaved(field);
       setTimeout(() => setSaved(null), 2000);
-    } catch (e) { console.error(e); }
-    finally { setSaving(null); }
-  };
-
-  const submitKnowledgeUpdate = async () => {
-    if (!updateNotes.trim()) return;
-    setSaving("knowledge");
-    try {
-      await api("/settings/knowledge-update", { method: "POST", body: JSON.stringify({ update_notes: updateNotes }) });
-      setSaved("knowledge");
-      setUpdateNotes("");
-      setTimeout(() => setSaved(null), 3000);
     } catch (e) { console.error(e); }
     finally { setSaving(null); }
   };
