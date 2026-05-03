@@ -125,6 +125,12 @@ router.patch('/brand', auth, async (req, res) => {
     );
 
     res.json({ message: 'Brand and notification settings updated' });
+  } catch (err) {
+    console.error('Update brand error:', err);
+    res.status(500).json({ error: 'Failed to update brand settings' });
+  }
+});
+
 // PATCH /api/settings/crm — Update CRM Integrations
 router.patch('/crm', auth, async (req, res) => {
   try {
