@@ -5,17 +5,23 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-// Plan and Top-up configuration
+// Plan, Top-up, and Add-on configuration
 const PLANS = {
-  // Monthly Subscriptions (Upgrades)
+  // Monthly Subscriptions (Base Plans)
   trial:    { type: 'plan',   minutes: 15,   price: 59900,  label: 'Trial — 15 mins', validityDays: 7 },
   silver:   { type: 'plan',   minutes: 200,  price: 299900, label: 'Silver — 200 mins', validityDays: 30 },
   gold:     { type: 'plan',   minutes: 500,  price: 499900, label: 'Gold — 500 mins', validityDays: 30 },
   diamond:  { type: 'plan',   minutes: 1000, price: 799900, label: 'Diamond — 1,000 mins', validityDays: 30 },
   platinum: { type: 'plan',   minutes: 2000, price: 999900, label: 'Platinum — 2,000 mins', validityDays: 30 },
-  // Top-up Packs (Recharge)
-  topup_100: { type: 'topup',  minutes: 100,  price: 150000, label: '100 Min Pack' },
-  topup_500: { type: 'topup',  minutes: 500,  price: 600000, label: '500 Min Pack' },
+  
+  // Minute Top-up Packs (One-time)
+  topup_100:  { type: 'topup',  minutes: 100,  price: 150000,  label: 'Starter (100 Mins)' },
+  topup_500:  { type: 'topup',  minutes: 500,  price: 600000,  label: 'Value (500 Mins)' },
+  topup_1000: { type: 'topup',  minutes: 1000, price: 1000000, label: 'Enterprise (1,000 Mins)' },
+
+  // Feature Add-ons (Monthly Recurring)
+  addon_number:      { type: 'addon', minutes: 0, price: 150000, label: 'Extra AI Number' },
+  addon_intercept:   { type: 'addon', minutes: 0, price: 250000, label: 'Live Interception Pack' },
 };
 
 // POST /api/payments/create-order — Create a Razorpay order
