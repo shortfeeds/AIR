@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { CreditCard, History, Zap, CheckCircle, Loader2, FileText, TrendingUp, Calendar, Info, PlusCircle } from "lucide-react";
+import { CreditCard, History, Zap, CheckCircle, Loader2, FileText, TrendingUp, Calendar, Info, PlusCircle, ChevronRight } from "lucide-react";
 
 interface Subscription {
   plan_name: string;
@@ -22,9 +22,9 @@ interface Transaction {
 }
 
 const TOPUP_OPTIONS = [
-  { id: "topup_100", mins: 100, price: 1500, label: "Starter", desc: "Best for low volume days" },
-  { id: "topup_500", mins: 500, price: 6000, label: "Professional", desc: "Value for growing shops", best: true },
-  { id: "topup_1000", mins: 1000, price: 10000, label: "Enterprise", desc: "For high-traffic periods" },
+  { id: "topup_50", mins: 50, price: 500, label: "Mini", desc: "Just a few calls" },
+  { id: "topup_100", mins: 100, price: 1000, label: "Starter", desc: "Best for low volume days" },
+  { id: "topup_200", mins: 200, price: 2000, label: "Value", desc: "Standard recharge", best: true },
 ];
 
 const FEATURE_ADDONS = [
@@ -44,6 +44,8 @@ export default function UsagePage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [recharging, setRecharging] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [upgradeModal, setUpgradeModal] = useState<any>(null);
+  const [calculating, setCalculating] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -62,12 +64,12 @@ export default function UsagePage() {
   const usedPercent = sub ? Math.max(0, 100 - parseFloat(sub.usage_percentage || "0")) : 0;
   const isLowMinutes = sub ? sub.available_minutes < 50 : false;
 
-  const handlePayment = async (planId: string) => {
+  const handlePayment = async (planId: string, isUpgrade = false) => {
     setRecharging(planId);
     try {
       const { order_id, amount, currency, key_id } = await api("/payments/create-order", {
         method: "POST",
-        body: JSON.stringify({ plan: planId }),
+        body: JSON.stringify({ plan: planId, isUpgrade }),
       });
 
       const res = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
@@ -98,6 +100,21 @@ export default function UsagePage() {
       alert("Failed to initiate payment.");
     } finally {
       setRecharging(null);
+    }
+  };
+
+  const handleUpgradeClick = async (planId: string) => {
+    setCalculating(true);
+    try {
+      const data = await api("/payments/calculate-upgrade", {
+        method: "POST",
+        body: JSON.stringify({ targetPlan: planId })
+      });
+      setUpgradeModal(data);
+    } catch (e) {
+      alert("Failed to calculate upgrade.");
+    } finally {
+      setCalculating(false);
     }
   };
 
@@ -231,22 +248,73 @@ export default function UsagePage() {
 
             <div className="card p-6">
               <h3 className="font-bold flex items-center gap-2 mb-6" style={{ color: "var(--text-primary)" }}>
-                <CreditCard className="w-4 h-4 text-indigo-400" /> Monthly Plan
+                <CreditCard className="w-4 h-4 text-indigo-400" /> Smart Upgrade
               </h3>
-              <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/20 mb-4">
-                <div className="flex justify-between items-start mb-2">
-                  <p className="text-xs font-bold opacity-50">Current Active Plan</p>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold uppercase tracking-tighter">Active</span>
-                </div>
-                <p className="text-xl font-bold capitalize">{sub?.plan_name || "Starter"}</p>
+              <div className="space-y-3">
+                {PLAN_UPGRADES.filter(p => p.id !== sub?.plan_name).map(plan => (
+                  <button key={plan.id} onClick={() => handleUpgradeClick(plan.id)} className="w-full flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-all group">
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-white uppercase tracking-wider">{plan.label}</p>
+                      <p className="text-[10px] opacity-40">{plan.mins} Mins/mo</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-40 -translate-x-2 group-hover:translate-x-0 transition-all" />
+                  </button>
+                ))}
               </div>
-              <button onClick={() => window.location.hash = "pricing"} className="w-full py-2.5 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] text-xs font-bold opacity-60 transition-all">
-                Change Subscription Plan
-              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Upgrade Modal */}
+      {upgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={() => setUpgradeModal(null)}>
+          <div className="card p-8 w-full max-w-md relative overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
+              <Zap size={160} />
+            </div>
+            
+            <h3 className="text-xl font-bold mb-2">Smart Upgrade Summary</h3>
+            <p className="text-xs opacity-50 mb-8 uppercase tracking-widest">Calculated on Pro-Rata Basis</p>
+
+            <div className="space-y-6 mb-8">
+              <div className="flex justify-between items-center text-sm">
+                <span className="opacity-50">New Plan</span>
+                <span className="font-bold text-white uppercase tracking-wider">{upgradeModal.targetPlan}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="opacity-50">Remaining Cycle</span>
+                <span className="font-bold text-white">{upgradeModal.remainingDays} Days</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="opacity-50">Normal Price</span>
+                <span className="font-bold text-white line-through opacity-30">₹{upgradeModal.originalPrice / 100}</span>
+              </div>
+              <div className="pt-4 border-t border-white/10 flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">Pro-Rated Upgrade Price</p>
+                  <p className="text-3xl font-black text-white">₹{upgradeModal.proRatedAmount / 100}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Total Savings</p>
+                  <p className="text-xl font-bold text-emerald-400">₹{upgradeModal.savings / 100}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setUpgradeModal(null)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={() => handlePayment(upgradeModal.targetPlan, true)} disabled={!!recharging} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                {recharging ? <Loader2 className="w-4 h-4 animate-spin" /> : "Pay & Upgrade"}
+              </button>
+            </div>
+            
+            <p className="mt-6 text-[10px] text-center opacity-30 px-6">
+              Your billing cycle will reset today. All your current remaining minutes will be carried forward as a bonus.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Transaction History */}
       <div className="card overflow-hidden">

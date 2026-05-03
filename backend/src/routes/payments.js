@@ -15,25 +15,95 @@ const PLANS = {
   platinum: { type: 'plan',   minutes: 2000, price: 999900, label: 'Platinum — 2,000 mins', validityDays: 30 },
   
   // Minute Top-up Packs (One-time)
-  topup_100:  { type: 'topup',  minutes: 100,  price: 150000,  label: 'Starter (100 Mins)' },
-  topup_500:  { type: 'topup',  minutes: 500,  price: 600000,  label: 'Value (500 Mins)' },
-  topup_1000: { type: 'topup',  minutes: 1000, price: 1000000, label: 'Enterprise (1,000 Mins)' },
+  topup_50:   { type: 'topup',  minutes: 50,   price: 50000,   label: 'Mini (50 Mins)' },
+  topup_100:  { type: 'topup',  minutes: 100,  price: 100000,  label: 'Starter (100 Mins)' },
+  topup_200:  { type: 'topup',  minutes: 200,  price: 200000,  label: 'Value (200 Mins)' },
+  topup_500:  { type: 'topup',  minutes: 500,  price: 500000,  label: 'Pro (500 Mins)' },
+  topup_1000: { type: 'topup',  minutes: 1000, price: 900000,  label: 'Enterprise (1,000 Mins)' },
 
   // Feature Add-ons (Monthly Recurring)
   addon_number:      { type: 'addon', minutes: 0, price: 150000, label: 'Extra AI Number' },
   addon_intercept:   { type: 'addon', minutes: 0, price: 250000, label: 'Live Interception Pack' },
 };
 
+// POST /api/payments/calculate-upgrade — Calculate pro-rated upgrade cost
+router.post('/calculate-upgrade', auth, async (req, res) => {
+  try {
+    const { targetPlan } = req.body;
+    if (!PLANS[targetPlan] || PLANS[targetPlan].type !== 'plan') {
+      return res.status(400).json({ error: 'Invalid upgrade target' });
+    }
+
+    const subResult = await db.query('SELECT plan_name, billing_cycle_end FROM subscriptions WHERE client_id = $1', [req.user.id]);
+    if (subResult.rows.length === 0) return res.status(404).json({ error: 'No subscription' });
+
+    const sub = subResult.rows[0];
+    const currentPlan = PLANS[sub.plan_name] || { price: 0 };
+    const targetPlanConfig = PLANS[targetPlan];
+
+    // If current plan is more expensive or same, it's not a simple upgrade calculation here
+    if (targetPlanConfig.price <= currentPlan.price) {
+      return res.json({ 
+        proRatedAmount: targetPlanConfig.price, 
+        message: 'New plan price applied (Cycle will reset)' 
+      });
+    }
+
+    // Calculate remaining days
+    const end = new Date(sub.billing_cycle_end);
+    const now = new Date();
+    const diffTime = end.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    const remainingDays = Math.max(1, Math.min(30, diffDays));
+    
+    // Pro-rata: (Target - Current) * (Remaining / 30)
+    const priceDiff = targetPlanConfig.price - currentPlan.price;
+    const proRated = Math.round(priceDiff * (remainingDays / 30));
+    
+    // Minimum charge of 500 INR to cover processing
+    const finalAmount = Math.max(50000, proRated);
+
+    res.json({
+      currentPlan: sub.plan_name,
+      targetPlan,
+      remainingDays,
+      originalPrice: targetPlanConfig.price,
+      proRatedAmount: finalAmount,
+      savings: targetPlanConfig.price - finalAmount
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Calculation failed' });
+  }
+});
+
 // POST /api/payments/create-order — Create a Razorpay order
 router.post('/create-order', auth, async (req, res) => {
   try {
-    const { plan } = req.body;
+    const { plan, isUpgrade } = req.body;
 
     if (!PLANS[plan]) {
       return res.status(400).json({ error: 'Invalid plan selected' });
     }
 
-    const planConfig = PLANS[plan];
+    let planConfig = { ...PLANS[plan] };
+    
+    // Handle Smart Upgrade Pro-rating
+    if (isUpgrade && planConfig.type === 'plan') {
+      const subResult = await db.query('SELECT plan_name, billing_cycle_end FROM subscriptions WHERE client_id = $1', [req.user.id]);
+      if (subResult.rows.length > 0) {
+        const sub = subResult.rows[0];
+        const currentPrice = (PLANS[sub.plan_name] || { price: 0 }).price;
+        
+        if (planConfig.price > currentPrice) {
+          const end = new Date(sub.billing_cycle_end);
+          const diffDays = Math.ceil((end.getTime() - Date.now()) / (1000 * 3000 * 24)); // Roughly
+          const remainingDays = Math.max(1, Math.min(30, diffDays));
+          const proRated = Math.round((planConfig.price - currentPrice) * (remainingDays / 30));
+          planConfig.price = Math.max(50000, proRated);
+        }
+      }
+    }
 
     // Lazy-load Razorpay (only when credentials exist)
     let order;
@@ -48,7 +118,7 @@ router.post('/create-order', auth, async (req, res) => {
         amount: planConfig.price,
         currency: 'INR',
         receipt: `tp_${req.user.id}_${Date.now()}`,
-        notes: { user_id: req.user.id, plan },
+        notes: { user_id: req.user.id, plan, isUpgrade: isUpgrade ? 'true' : 'false' },
       });
     } else {
       // Mock order for development
