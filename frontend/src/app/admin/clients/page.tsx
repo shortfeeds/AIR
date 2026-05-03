@@ -12,6 +12,7 @@ export default function AdminClients() {
   const [bonusMins, setBonusMins] = useState("");
   const [addingMins, setAddingMins] = useState(false);
   const [changePlanModal, setChangePlanModal] = useState<{ id: string; name: string; currentPlan: string } | null>(null);
+  const [newPlan, setNewPlan] = useState("");
   const [changingPlan, setChangingPlan] = useState(false);
   const [addClientModal, setAddClientModal] = useState(false);
   const [newClient, setNewClient] = useState({ name: "", email: "", password: "", business_name: "", plan_name: "silver", initial_minutes: 0 });
