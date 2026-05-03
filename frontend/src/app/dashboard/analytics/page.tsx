@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  AreaChart, Area, PieChart, Pie, Cell, Legend, LineChart, Line
+  AreaChart, Area, PieChart, Pie, Cell, Legend
 } from "recharts";
-import { TrendingUp, Clock, PhoneCall, Users, Calendar, Filter, Loader2, Zap } from "lucide-react";
+import { TrendingUp, Clock, PhoneCall, Loader2, Zap } from "lucide-react";
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<any>(null);

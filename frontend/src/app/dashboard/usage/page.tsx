@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { CreditCard, History, Zap, CheckCircle, Loader2, FileText, TrendingUp, Calendar, Info, PlusCircle, ChevronRight } from "lucide-react";
+import { CreditCard, History, Zap, Loader2, FileText, TrendingUp, Calendar, Info, PlusCircle, ChevronRight } from "lucide-react";
 
 interface Subscription {
   plan_name: string;
@@ -45,7 +45,6 @@ export default function UsagePage() {
   const [recharging, setRecharging] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [upgradeModal, setUpgradeModal] = useState<any>(null);
-  const [calculating, setCalculating] = useState(false);
 
   useEffect(() => {
     Promise.all([

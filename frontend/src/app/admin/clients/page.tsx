@@ -2,9 +2,8 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { 
-  Phone, Plus, Loader2, Settings, UserCircle, UserPlus, Key, Brain, Save, Layout, 
-  Edit2, Trash2, ShieldCheck, Mail, Building2, Search, Filter, MoreVertical,
-  ChevronRight, Calendar, Zap, AlertTriangle, Send, X
+  Phone, Plus, Loader2, Settings, UserCircle, UserPlus, Layout, 
+  Edit2, Trash2, Search, Calendar, Zap, AlertTriangle, X
 } from "lucide-react";
 import Portal from "@/components/Portal";
 
@@ -18,8 +17,6 @@ export default function AdminClients() {
   const [addMinModal, setAddMinModal] = useState<{ id: string; name: string } | null>(null);
   const [changePlanModal, setChangePlanModal] = useState<{ id: string; name: string; currentPlan: string } | null>(null);
   const [addClientModal, setAddClientModal] = useState(false);
-  const [pwModal, setPwModal] = useState<{ id: string; name: string } | null>(null);
-  const [abModal, setAbModal] = useState<{ id: string; name: string; promptB: string; abActive: boolean } | null>(null);
   const [editModal, setEditModal] = useState<any | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
@@ -27,12 +24,10 @@ export default function AdminClients() {
   const [plivoNumber, setPlivoNumber] = useState("");
   const [bonusMins, setBonusMins] = useState("");
   const [newPlan, setNewPlan] = useState("");
-  const [newPw, setNewPw] = useState("");
   const [newClient, setNewClient] = useState({ name: "", email: "", password: "", business_name: "", plan_name: "silver", initial_minutes: 200, plivo_number: "" });
   
   // Loading States
   const [processing, setProcessing] = useState<string | null>(null);
-  const [availableNumbers, setAvailableNumbers] = useState<any[]>([]);
   const [ownedNumbers, setOwnedNumbers] = useState<any[]>([]);
   const [searchingNumbers, setSearchingNumbers] = useState(false);
   const [showInventory, setShowInventory] = useState(false);

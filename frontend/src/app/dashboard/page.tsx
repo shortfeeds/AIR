@@ -13,6 +13,8 @@ interface Lead {
   transcript_raw: string;
   action_taken: string;
   recording_url?: string;
+  lead_score?: number;
+  sentiment?: string;
 }
 
 interface Stats {

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { Phone, Save, Loader2, CheckCircle, Send, Activity, Volume2, Globe, Shield, Database, Layout, Clock } from "lucide-react";
+import { Phone, Loader2, CheckCircle, Globe, Database, Layout, Clock } from "lucide-react";
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
