@@ -28,20 +28,23 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// PATCH /api/settings/ai — Update AI preferences (Language, Booking Link)
+// PATCH /api/settings/ai — Update AI preferences (Language, Booking Link, KB)
 router.patch('/ai', auth, async (req, res) => {
   try {
-    const { language, booking_link } = req.body;
+    const { language, booking_link, primary_services, top_faqs, ai_goal } = req.body;
 
     await db.query(
       `UPDATE knowledge_base
        SET language = COALESCE($1, language),
-           booking_link = COALESCE($2, booking_link)
-       WHERE client_id = $3`,
-      [language, booking_link, req.user.id]
+           booking_link = COALESCE($2, booking_link),
+           primary_services = COALESCE($3, primary_services),
+           top_faqs = COALESCE($4, top_faqs),
+           ai_goal = COALESCE($5, ai_goal)
+       WHERE client_id = $6`,
+      [language, booking_link, primary_services, JSON.stringify(top_faqs), ai_goal, req.user.id]
     );
 
-    res.json({ message: 'AI preferences updated' });
+    res.json({ message: 'AI preferences and knowledge base updated' });
   } catch (err) {
     console.error('Update AI settings error:', err);
     res.status(500).json({ error: 'Failed to update AI preferences' });
@@ -109,21 +112,36 @@ router.post('/knowledge-update', auth, async (req, res) => {
 // PATCH /api/settings/brand — Update Brand & Notifications
 router.patch('/brand', auth, async (req, res) => {
   try {
-    const { avg_lead_value, logo_url, n8n_webhook_url } = req.body;
+    const { avg_lead_value, logo_url, n8n_webhook_url, gstin } = req.body;
 
     await db.query(
       `UPDATE client_profiles
        SET avg_lead_value = COALESCE($1, avg_lead_value),
            logo_url = COALESCE($2, logo_url),
-           n8n_webhook_url = COALESCE($3, n8n_webhook_url)
-       WHERE user_id = $4`,
-      [avg_lead_value, logo_url, n8n_webhook_url, req.user.id]
+           n8n_webhook_url = COALESCE($3, n8n_webhook_url),
+           gstin = COALESCE($4, gstin)
+       WHERE user_id = $5`,
+      [avg_lead_value, logo_url, n8n_webhook_url, gstin, req.user.id]
     );
 
     res.json({ message: 'Brand and notification settings updated' });
+// PATCH /api/settings/crm — Update CRM Integrations
+router.patch('/crm', auth, async (req, res) => {
+  try {
+    const { crm_type, crm_webhook_url } = req.body;
+
+    await db.query(
+      `UPDATE client_profiles
+       SET crm_type = COALESCE($1, crm_type),
+           crm_webhook_url = COALESCE($2, crm_webhook_url)
+       WHERE user_id = $3`,
+      [crm_type, crm_webhook_url, req.user.id]
+    );
+
+    res.json({ message: 'CRM integration settings updated' });
   } catch (err) {
-    console.error('Update brand error:', err);
-    res.status(500).json({ error: 'Failed to update brand settings' });
+    console.error('Update crm error:', err);
+    res.status(500).json({ error: 'Failed to update CRM settings' });
   }
 });
 

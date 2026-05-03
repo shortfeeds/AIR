@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS client_profiles (
   avg_lead_value INTEGER DEFAULT 1000,
   logo_url VARCHAR(500),
   n8n_webhook_url VARCHAR(500),
+  gstin VARCHAR(20),
   crm_type VARCHAR(50) DEFAULT 'none' CHECK (crm_type IN ('none', 'zoho', 'hubspot', 'custom')),
   crm_webhook_url VARCHAR(500),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

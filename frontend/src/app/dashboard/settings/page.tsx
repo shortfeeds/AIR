@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { Phone, Save, Loader2, CheckCircle, Send } from "lucide-react";
+import { Phone, Save, Loader2, CheckCircle, Send, Activity, Volume2, Globe, Shield, Database, Layout, Clock } from "lucide-react";
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
 export default function SettingsPage() {
-  const [transferNumber, setTransferNumber] = useState("+91 98765 43210");
+  const [transferNumber, setTransferNumber] = useState("");
   const [transferMode, setTransferMode] = useState("on_request");
   const [hours, setHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({
     Monday: { open: "09:00", close: "18:00", closed: false },
@@ -19,9 +19,13 @@ export default function SettingsPage() {
   });
   const [language, setLanguage] = useState("English");
   const [bookingLink, setBookingLink] = useState("");
+  const [primaryServices, setPrimaryServices] = useState("");
+  const [aiGoal, setAiGoal] = useState("answer_faqs");
+  const [faqs, setFaqs] = useState<any[]>([]);
   const [avgLeadValue, setAvgLeadValue] = useState(1000);
   const [logoUrl, setLogoUrl] = useState("");
   const [n8nWebhookUrl, setN8nWebhookUrl] = useState("");
+  const [gstin, setGstin] = useState("");
   const [crmType, setCrmType] = useState("none");
   const [crmWebhookUrl, setCrmWebhookUrl] = useState("");
   const [updateNotes, setUpdateNotes] = useState("");
@@ -34,17 +38,18 @@ export default function SettingsPage() {
       setTransferMode(data.settings.transfer_mode || "on_request");
       setLanguage(data.settings.knowledge?.language || "English");
       setBookingLink(data.settings.knowledge?.booking_link || "");
+      setPrimaryServices(data.settings.knowledge?.primary_services || "");
+      setAiGoal(data.settings.knowledge?.ai_goal || "answer_faqs");
+      setFaqs(data.settings.knowledge?.top_faqs || []);
       setAvgLeadValue(data.settings.avg_lead_value || 1000);
       setLogoUrl(data.settings.logo_url || "");
       setN8nWebhookUrl(data.settings.n8n_webhook_url || "");
+      setGstin(data.settings.gstin || "");
       setCrmType(data.settings.crm_type || "none");
       setCrmWebhookUrl(data.settings.crm_webhook_url || "");
-      const h: Record<string, any> = {};
-      DAYS.forEach(d => {
-        const dayData = data.settings.operating_hours?.[d];
-        h[d] = dayData || { open: "09:00", close: "18:00", closed: false };
-      });
-      setHours(h);
+      if (data.settings.operating_hours) {
+        setHours(data.settings.operating_hours);
+      }
     }).catch(console.error);
   }, []);
 
@@ -71,164 +76,185 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in max-w-3xl">
+    <div className="space-y-8 animate-fade-in max-w-4xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Settings</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Manage your AI receptionist configuration</p>
+        <h1 className="text-2xl font-bold text-white">Settings & Preferences</h1>
+        <p className="text-sm opacity-50 mt-1">Configure your AI receptionist and business integrations</p>
       </div>
 
-      {/* Transfer Number */}
-      <div className="card p-6">
-        <h3 className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Transfer Number</h3>
-        <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>The number your AI will transfer urgent callers to</p>
-        <div className="flex gap-3">
-          <div className="relative flex-1">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--text-muted)" }} />
-            <input type="tel" value={transferNumber} onChange={(e) => setTransferNumber(e.target.value)} className="input-field pl-10" placeholder="+91 98765 43210" />
-          </div>
-          <select value={transferMode} onChange={(e) => setTransferMode(e.target.value)} className="input-field w-48">
-            <option value="on_request">On request only</option>
-            <option value="all_calls">Transfer all calls</option>
-          </select>
-          <button onClick={() => saveField("transfer", "/settings/transfer", { transfer_number: transferNumber, transfer_mode: transferMode })} className="btn-primary flex items-center gap-2 text-sm" disabled={saving === "transfer"}>
-            {saving === "transfer" ? <Loader2 className="w-4 h-4 animate-spin" /> : saved === "transfer" ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-
-      {/* AI Configuration */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>AI Configuration</h3>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Customize how your AI speaks and handles bookings</p>
-          </div>
-          <button onClick={() => saveField("ai", "/settings/ai", { language, booking_link: bookingLink })} className="btn-secondary text-sm flex items-center gap-2" disabled={saving === "ai"}>
-            {saving === "ai" ? <Loader2 className="w-4 h-4 animate-spin" /> : saved === "ai" ? <><CheckCircle className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save AI Settings</>}
-          </button>
-        </div>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">AI Language</label>
-            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="input-field">
-              <option value="English">English</option>
-              <option value="Hindi">Hindi</option>
-              <option value="Hinglish">Hinglish (Hindi + English)</option>
-              <option value="Tamil">Tamil</option>
-              <option value="Telugu">Telugu</option>
-              <option value="Kannada">Kannada</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">Booking Link (Calendly/Other)</label>
-            <input value={bookingLink} onChange={(e) => setBookingLink(e.target.value)} className="input-field" placeholder="https://calendly.com/your-business" />
-          </div>
-        </div>
-      </div>
-
-      {/* Operating Hours */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Operating Hours</h3>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Outside these hours, your AI will take messages</p>
-          </div>
-          <button onClick={() => saveField("hours", "/settings/hours", { operating_hours: hours })} className="btn-secondary text-sm flex items-center gap-2" disabled={saving === "hours"}>
-            {saving === "hours" ? <Loader2 className="w-4 h-4 animate-spin" /> : saved === "hours" ? <><CheckCircle className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save Hours</>}
-          </button>
-        </div>
-        <div className="space-y-3">
-          {DAYS.map((day) => (
-            <div key={day} className="flex items-center gap-3">
-              <span className="w-24 text-sm font-medium" style={{ color: "var(--text-secondary)" }}>{day}</span>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={!hours[day]?.closed} onChange={(e) => setHours({ ...hours, [day]: { ...hours[day], closed: !e.target.checked } })} className="accent-[var(--brand-500)]" />
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>{hours[day]?.closed ? "Closed" : "Open"}</span>
-              </label>
-              {!hours[day]?.closed && (
-                <>
-                  <input type="time" value={hours[day]?.open || "09:00"} onChange={(e) => setHours({ ...hours, [day]: { ...hours[day], open: e.target.value } })} className="input-field !w-28 text-sm !py-1.5" />
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>to</span>
-                  <input type="time" value={hours[day]?.close || "18:00"} onChange={(e) => setHours({ ...hours, [day]: { ...hours[day], close: e.target.value } })} className="input-field !w-28 text-sm !py-1.5" />
-                </>
-              )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          {/* AI Intelligence Editor */}
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="font-bold text-white flex items-center gap-2">
+                <Globe className="w-4 h-4 text-indigo-400" /> AI Intelligence Editor
+              </h3>
+              <button 
+                onClick={() => saveField("ai_kb", "/settings/ai", { language, booking_link: bookingLink, primary_services: primaryServices, ai_goal: aiGoal, top_faqs: faqs })} 
+                className="btn-primary text-xs flex items-center gap-2" 
+                disabled={saving === "ai_kb"}
+              >
+                {saving === "ai_kb" ? <Loader2 className="w-3 h-3 animate-spin" /> : saved === "ai_kb" ? "Trained!" : "Update AI Brain"}
+              </button>
             </div>
-          ))}
-        </div>
-      </div>
-      
-      {/* Brand Identity & Notifications */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Brand & Notifications</h3>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>White-labeling and automated lead alerts</p>
-          </div>
-          <button onClick={() => saveField("brand", "/settings/brand", { avg_lead_value: avgLeadValue, logo_url: logoUrl, n8n_webhook_url: n8nWebhookUrl })} className="btn-secondary text-sm flex items-center gap-2" disabled={saving === "brand"}>
-            {saving === "brand" ? <Loader2 className="w-4 h-4 animate-spin" /> : saved === "brand" ? <><CheckCircle className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save Brand Settings</>}
-          </button>
-        </div>
-        <div className="space-y-4">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">Average Lead Value (₹)</label>
-              <input type="number" value={avgLeadValue} onChange={(e) => setAvgLeadValue(parseInt(e.target.value))} className="input-field" placeholder="1000" />
-            </div>
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">Business Logo URL</label>
-              <input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="input-field" placeholder="https://..." />
+            
+            <div className="space-y-6">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 block">Primary AI Goal</label>
+                  <select value={aiGoal} onChange={(e) => setAiGoal(e.target.value)} className="input-field">
+                    <option value="answer_faqs">General Info & FAQs</option>
+                    <option value="book_appointment">Appointment Booking</option>
+                    <option value="qualify_leads">Lead Qualification</option>
+                    <option value="take_message">Message Taking Only</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 block">AI Language</label>
+                  <select value={language} onChange={(e) => setLanguage(e.target.value)} className="input-field">
+                    <option value="English">English</option>
+                    <option value="Hindi">Hindi</option>
+                    <option value="Hinglish">Hinglish</option>
+                    <option value="Tamil">Tamil</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 block">Business & Services Overview</label>
+                <textarea 
+                  value={primaryServices} 
+                  onChange={(e) => setPrimaryServices(e.target.value)} 
+                  className="input-field min-h-[120px] text-sm leading-relaxed" 
+                  placeholder="Describe your business, services, and pricing in detail..." 
+                />
+              </div>
+
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-4">
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Dynamic FAQs</label>
+                  <button onClick={() => setFaqs([...faqs, { q: "", a: "" }])} className="text-[10px] font-black uppercase tracking-widest bg-white/5 hover:bg-white/10 px-3 py-1 rounded">
+                    + Add Question
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  {faqs.map((faq, idx) => (
+                    <div key={idx} className="bg-black/20 p-4 rounded-xl border border-white/5 relative group">
+                      <input 
+                        value={faq.q} 
+                        onChange={(e) => { const n = [...faqs]; n[idx].q = e.target.value; setFaqs(n); }}
+                        placeholder="Caller asks..." 
+                        className="bg-transparent border-none outline-none text-xs font-bold w-full text-white placeholder:opacity-20 mb-2" 
+                      />
+                      <textarea 
+                        value={faq.a} 
+                        onChange={(e) => { const n = [...faqs]; n[idx].a = e.target.value; setFaqs(n); }}
+                        placeholder="AI should respond with..." 
+                        className="bg-transparent border-none outline-none text-xs w-full opacity-60 placeholder:opacity-20 resize-none"
+                        rows={2}
+                      />
+                      <button onClick={() => setFaqs(faqs.filter((_, i) => i !== idx))} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-rose-500">
+                        <CheckCircle className="w-4 h-4 rotate-45" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">WhatsApp Webhook (n8n)</label>
-            <input value={n8nWebhookUrl} onChange={(e) => setN8nWebhookUrl(e.target.value)} className="input-field" placeholder="https://your-n8n-instance.com/webhook/..." />
-          </div>
-        </div>
-      </div>
 
-      {/* CRM Integrations */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>CRM Integrations</h3>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Sync leads directly to your management tools</p>
+          {/* CRM & Integrations */}
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="font-bold text-white flex items-center gap-2">
+                <Database className="w-4 h-4 text-emerald-400" /> CRM Integrations
+              </h3>
+              <button onClick={() => saveField("crm", "/settings/crm", { crm_type: crmType, crm_webhook_url: crmWebhookUrl })} className="btn-secondary text-xs" disabled={saving === "crm"}>
+                {saving === "crm" ? <Loader2 className="w-3 h-3 animate-spin" /> : saved === "crm" ? "Synced" : "Save Integration"}
+              </button>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 block">Provider</label>
+                <select value={crmType} onChange={(e) => setCrmType(e.target.value)} className="input-field">
+                  <option value="none">No CRM (Dashboard Only)</option>
+                  <option value="zoho">Zoho CRM</option>
+                  <option value="hubspot">HubSpot</option>
+                  <option value="custom">Custom Webhook</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 block">Endpoint URL</label>
+                <input value={crmWebhookUrl} onChange={(e) => setCrmWebhookUrl(e.target.value)} className="input-field" placeholder="https://..." disabled={crmType === "none"} />
+              </div>
+            </div>
           </div>
-          <button onClick={() => saveField("crm", "/settings/crm", { crm_type: crmType, crm_webhook_url: crmWebhookUrl })} className="btn-secondary text-sm flex items-center gap-2" disabled={saving === "crm"}>
-            {saving === "crm" ? <Loader2 className="w-4 h-4 animate-spin" /> : saved === "crm" ? <><CheckCircle className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save Integration</>}
-          </button>
         </div>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">Select Provider</label>
-            <select value={crmType} onChange={(e) => setCrmType(e.target.value)} className="input-field">
-              <option value="none">No CRM (Dashboard Only)</option>
-              <option value="zoho">Zoho CRM</option>
-              <option value="hubspot">HubSpot</option>
-              <option value="custom">Custom Webhook</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">CRM Webhook URL</label>
-            <input value={crmWebhookUrl} onChange={(e) => setCrmWebhookUrl(e.target.value)} className="input-field" placeholder="https://..." disabled={crmType === "none"} />
-          </div>
-        </div>
-      </div>
 
-      {/* Update AI Knowledge */}
-      <div className="card p-6">
-        <h3 className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Update AI Knowledge</h3>
-        <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>Tell us what you&apos;d like to change about your AI — we&apos;ll update it within a few hours</p>
-        <textarea value={updateNotes} onChange={(e) => setUpdateNotes(e.target.value)} className="input-field min-h-[120px] resize-y mb-3" placeholder="e.g. We have a Diwali sale — 20% off all services until Nov 15..." />
-        {saved === "knowledge" ? (
-          <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(34,197,94,0.1)", color: "var(--success)" }}>
-            ✅ Thanks! We&apos;ll update your AI within a few hours.
+        <div className="space-y-8">
+          {/* Transfer & Booking */}
+          <div className="card p-6">
+            <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+              <Phone className="w-4 h-4 text-amber-400" /> Escalation
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 block">Transfer Number</label>
+                <input type="tel" value={transferNumber} onChange={(e) => setTransferNumber(e.target.value)} className="input-field" placeholder="+91..." />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 block">Booking Link</label>
+                <input value={bookingLink} onChange={(e) => setBookingLink(e.target.value)} className="input-field" placeholder="Calendly/Booking URL" />
+              </div>
+              <button onClick={() => saveField("transfer", "/settings/transfer", { transfer_number: transferNumber, transfer_mode: transferMode })} className="w-full btn-secondary text-xs py-2 mt-2">
+                Save Changes
+              </button>
+            </div>
           </div>
-        ) : (
-          <button onClick={submitKnowledgeUpdate} disabled={saving === "knowledge" || !updateNotes.trim()} className="btn-primary flex items-center gap-2 text-sm">
-            {saving === "knowledge" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Submit Update Request
-          </button>
-        )}
+
+          {/* Operating Hours */}
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-white flex items-center gap-2">
+                <Clock className="w-4 h-4 text-indigo-400" /> Office Hours
+              </h3>
+              <button onClick={() => saveField("hours", "/settings/hours", { operating_hours: hours })} className="text-[10px] font-black uppercase text-indigo-400 hover:text-white">Save</button>
+            </div>
+            <div className="space-y-3">
+              {DAYS.map((day) => (
+                <div key={day} className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-white/60">{day.slice(0,3)}</span>
+                  <div className="flex items-center gap-2">
+                    <input type="time" value={hours[day]?.open} onChange={(e) => setHours({...hours, [day]: {...hours[day], open: e.target.value}})} className="bg-white/5 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white" />
+                    <span className="text-[10px] opacity-20">-</span>
+                    <input type="time" value={hours[day]?.close} onChange={(e) => setHours({...hours, [day]: {...hours[day], close: e.target.value}})} className="bg-white/5 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Business Profile */}
+          <div className="card p-6">
+            <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+              <Layout className="w-4 h-4 text-emerald-400" /> Business Profile
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 block">GSTIN (Optional)</label>
+                <input value={gstin} onChange={(e) => setGstin(e.target.value)} className="input-field" placeholder="Tax ID" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 block">Notifications Webhook</label>
+                <input value={n8nWebhookUrl} onChange={(e) => setN8nWebhookUrl(e.target.value)} className="input-field" placeholder="n8n/Webhook URL" />
+              </div>
+              <button onClick={() => saveField("brand", "/settings/brand", { avg_lead_value: avgLeadValue, logo_url: logoUrl, n8n_webhook_url: n8nWebhookUrl, gstin })} className="w-full btn-secondary text-xs py-2 mt-2">
+                Save Profile
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
