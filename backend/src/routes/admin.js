@@ -277,23 +277,47 @@ router.patch('/settings/plans', async (req, res) => {
   }
 });
 
-// GET /api/admin/plivo/available-numbers — Fetch numbers from Plivo account
+// GET /api/admin/plivo/available-numbers — Fetch numbers available to rent from Plivo
 router.get('/plivo/available-numbers', async (req, res) => {
   try {
     if (!process.env.PLIVO_AUTH_ID || !process.env.PLIVO_AUTH_TOKEN) {
       return res.status(501).json({ error: 'Plivo not configured' });
     }
+    const plivo = require('plivo');
+    const client = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
+    const numbers = await client.numbers.search('IN', { limit: 20 });
+    res.json({ numbers });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch available numbers' });
+  }
+});
 
+// GET /api/admin/plivo/owned-numbers — Fetch numbers ALREADY PURCHASED in Plivo account
+router.get('/plivo/owned-numbers', async (req, res) => {
+  try {
+    if (!process.env.PLIVO_AUTH_ID || !process.env.PLIVO_AUTH_TOKEN) {
+      return res.status(501).json({ error: 'Plivo not configured' });
+    }
     const plivo = require('plivo');
     const client = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
     
-    // Search for available numbers to rent in India
-    const numbers = await client.numbers.search('IN', { limit: 20 });
+    // List numbers already rented in the account
+    const numbers = await client.numbers.list({ limit: 50 });
     
-    res.json({ numbers });
+    // We filter out numbers that are already assigned in our DB
+    const assignedResult = await db.query('SELECT plivo_number FROM phone_numbers WHERE is_active = true');
+    const assignedSet = new Set(assignedResult.rows.map(r => r.plivo_number));
+    
+    const availableOwned = numbers.map(n => ({
+      number: n.number,
+      alias: n.alias,
+      is_assigned: assignedSet.has(n.number)
+    }));
+
+    res.json({ numbers: availableOwned });
   } catch (err) {
-    console.error('Plivo search error:', err);
-    res.status(500).json({ error: 'Failed to fetch numbers from Plivo' });
+    console.error('Plivo owned list error:', err);
+    res.status(500).json({ error: 'Failed to fetch owned numbers' });
   }
 });
 

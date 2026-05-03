@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
-import { Phone, Plus, Loader2, Settings, UserCircle, UserPlus, Key, Brain, Save } from "lucide-react";
+import { Phone, Plus, Loader2, Settings, UserCircle, UserPlus, Key, Brain, Save, Layout } from "lucide-react";
 import Portal from "@/components/Portal";
 
 export default function AdminClients() {
@@ -32,13 +32,26 @@ export default function AdminClients() {
   const [abModal, setAbModal] = useState<{ id: string; name: string; promptB: string; abActive: boolean } | null>(null);
   const [savingAb, setSavingAb] = useState(false);
   const [availableNumbers, setAvailableNumbers] = useState<any[]>([]);
+  const [ownedNumbers, setOwnedNumbers] = useState<any[]>([]);
   const [searchingNumbers, setSearchingNumbers] = useState(false);
+  const [showInventory, setShowInventory] = useState(false);
 
   const fetchAvailableNumbers = async () => {
     setSearchingNumbers(true);
+    setShowInventory(false);
     try {
       const data = await api("/admin/plivo/available-numbers");
       setAvailableNumbers(data.numbers || []);
+    } catch (e) { console.error(e); }
+    finally { setSearchingNumbers(false); }
+  };
+
+  const fetchOwnedNumbers = async () => {
+    setSearchingNumbers(true);
+    setShowInventory(true);
+    try {
+      const data = await api("/admin/plivo/owned-numbers");
+      setOwnedNumbers(data.numbers || []);
     } catch (e) { console.error(e); }
     finally { setSearchingNumbers(false); }
   };
@@ -190,18 +203,28 @@ export default function AdminClients() {
               <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Assign Plivo Number to {assignModal.name}</h3>
             <div className="flex gap-2 mb-4">
               <input value={plivoNumber} onChange={(e) => setPlivoNumber(e.target.value)} className="input-field flex-1" placeholder="+91 XXXX XXXX XX" />
-              <button onClick={fetchAvailableNumbers} className="btn-ghost !p-2" title="Search Available Numbers">
-                {searchingNumbers ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              <button onClick={fetchOwnedNumbers} className="btn-ghost !p-2 border border-white/5" title="Show Inventory (Existing Numbers)">
+                <Layout className="w-4 h-4" />
+              </button>
+              <button onClick={fetchAvailableNumbers} className="btn-ghost !p-2 border border-white/5" title="Search New Numbers to Buy">
+                {searchingNumbers && !showInventory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               </button>
             </div>
 
-            {availableNumbers.length > 0 && (
-              <div className="mb-4 max-h-40 overflow-y-auto border border-white/5 rounded-lg bg-white/5 p-2">
-                <p className="text-[10px] uppercase font-bold opacity-40 mb-2 px-1">Available to Buy (+91)</p>
-                {availableNumbers.map((num) => (
-                  <button key={num.number} onClick={() => { setPlivoNumber(num.number); setAvailableNumbers([]); }} className="w-full text-left p-2 text-xs hover:bg-indigo-500/20 rounded transition-colors flex justify-between items-center">
-                    <span>{num.number}</span>
-                    <span className="text-[8px] bg-indigo-500/30 px-1 rounded">SELECT</span>
+            {((showInventory && ownedNumbers.length > 0) || (!showInventory && availableNumbers.length > 0)) && (
+              <div className="mb-4 max-h-48 overflow-y-auto border border-white/5 rounded-xl bg-white/5 p-2 animate-slide-up">
+                <p className="text-[10px] uppercase font-black tracking-widest opacity-40 mb-3 px-1">
+                  {showInventory ? "Inventory (Owned Numbers)" : "Available to Buy (+91)"}
+                </p>
+                {(showInventory ? ownedNumbers : availableNumbers).map((num) => (
+                  <button key={num.number} onClick={() => { setPlivoNumber(num.number); setAvailableNumbers([]); setOwnedNumbers([]); }} className="w-full text-left p-2.5 text-xs hover:bg-indigo-500/20 rounded-lg transition-all flex justify-between items-center mb-1 group">
+                    <div className="flex flex-col">
+                      <span className="font-bold">{num.number}</span>
+                      {num.alias && <span className="text-[10px] opacity-40">{num.alias}</span>}
+                    </div>
+                    <span className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter ${num.is_assigned ? 'bg-amber-500/20 text-amber-500' : 'bg-indigo-500/20 text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white'}`}>
+                      {num.is_assigned ? 'ASSIGNED' : 'SELECT'}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -294,16 +317,27 @@ export default function AdminClients() {
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
                       <input value={newClient.plivo_number} onChange={(e) => setNewClient({ ...newClient, plivo_number: e.target.value })} className="input-field pl-10" placeholder="+91..." />
                     </div>
-                    <button onClick={fetchAvailableNumbers} type="button" className="btn-ghost !p-2 border border-white/5" title="Search available numbers">
-                      {searchingNumbers ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    <button onClick={fetchOwnedNumbers} type="button" className="btn-ghost !p-2 border border-white/5" title="Show Inventory (Owned Numbers)">
+                      <Layout className="w-4 h-4" />
+                    </button>
+                    <button onClick={fetchAvailableNumbers} type="button" className="btn-ghost !p-2 border border-white/5" title="Search New Numbers to Buy">
+                      {searchingNumbers && !showInventory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                     </button>
                   </div>
-                  {availableNumbers.length > 0 && (
-                    <div className="mt-2 max-h-32 overflow-y-auto border border-white/5 rounded-lg bg-white/5 p-2 animate-slide-down">
-                      {availableNumbers.map((num) => (
-                        <button key={num.number} type="button" onClick={() => { setNewClient({ ...newClient, plivo_number: num.number }); setAvailableNumbers([]); }} className="w-full text-left p-2 text-xs hover:bg-indigo-500/20 rounded flex justify-between items-center transition-all">
-                          <span>{num.number}</span>
-                          <span className="text-[8px] bg-green-500/20 text-green-400 px-1 rounded uppercase font-bold">Pick</span>
+                  {((showInventory && ownedNumbers.length > 0) || (!showInventory && availableNumbers.length > 0)) && (
+                    <div className="mt-2 max-h-40 overflow-y-auto border border-white/5 rounded-xl bg-white/5 p-2 animate-slide-down">
+                      <p className="text-[10px] uppercase font-black tracking-widest opacity-40 mb-3 px-1">
+                        {showInventory ? "Owned Inventory" : "Available to Buy (+91)"}
+                      </p>
+                      {(showInventory ? ownedNumbers : availableNumbers).map((num) => (
+                        <button key={num.number} type="button" onClick={() => { setNewClient({ ...newClient, plivo_number: num.number }); setAvailableNumbers([]); setOwnedNumbers([]); }} className="w-full text-left p-2.5 text-xs hover:bg-indigo-500/20 rounded-lg transition-all flex justify-between items-center mb-1 group">
+                          <div className="flex flex-col">
+                            <span className="font-bold">{num.number}</span>
+                            {num.alias && <span className="text-[10px] opacity-40">{num.alias}</span>}
+                          </div>
+                          <span className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter ${num.is_assigned ? 'bg-amber-500/20 text-amber-500' : 'bg-green-500/20 text-green-400 group-hover:bg-green-500 group-hover:text-white'}`}>
+                            {num.is_assigned ? 'ASSIGNED' : 'PICK'}
+                          </span>
                         </button>
                       ))}
                     </div>
