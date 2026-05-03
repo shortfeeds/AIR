@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { 
-  Phone, Plus, Loader2, Settings, UserCircle, UserPlus, Layout, 
+  Phone, Plus, Loader2, Settings, UserCircle, UserPlus, 
   Edit2, Trash2, Search, Calendar, Zap, AlertTriangle, X
 } from "lucide-react";
 import Portal from "@/components/Portal";
@@ -316,10 +316,7 @@ export default function AdminClients() {
                   </div>
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Plivo Number</label>
-                    <div className="flex gap-2">
-                       <input value={newClient.plivo_number} onChange={(e) => setNewClient({ ...newClient, plivo_number: e.target.value })} className="input-field" placeholder="+91..." />
-                       <button onClick={fetchOwnedNumbers} className="btn-ghost !p-2 border border-white/5" title="Inventory"><Layout className="w-4 h-4" /></button>
-                    </div>
+                    <input value={newClient.plivo_number} onChange={(e) => setNewClient({ ...newClient, plivo_number: e.target.value })} className="input-field" placeholder="+91..." />
                   </div>
                 </div>
 
@@ -365,9 +362,8 @@ export default function AdminClients() {
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setAssignModal(null)}>
             <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
               <h3 className="font-bold text-white mb-4">Assign Number to {assignModal.name}</h3>
-              <div className="flex gap-2 mb-4">
+              <div className="mb-4">
                  <input value={plivoNumber} onChange={(e) => setPlivoNumber(e.target.value)} className="input-field" placeholder="+91..." />
-                 <button onClick={fetchOwnedNumbers} className="btn-ghost !p-2 border border-white/5"><Layout className="w-4 h-4" /></button>
               </div>
               <div className="flex gap-2">
                  <button onClick={() => setAssignModal(null)} className="btn-secondary flex-1 text-xs font-bold">Cancel</button>
