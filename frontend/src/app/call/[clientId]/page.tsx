@@ -4,7 +4,8 @@ import { useParams } from "next/navigation";
 import { Mic, MicOff, PhoneOff, Loader2, Volume2, CheckCircle } from "lucide-react";
 
 export default function PublicCallPage() {
-  const { clientId: _clientId } = useParams();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { clientId } = useParams();
   const [status, setStatus] = useState("ready"); // ready, connecting, active, ended
   const [muted, setMuted] = useState(false);
   const [timer, setTimer] = useState(0);

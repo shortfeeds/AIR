@@ -70,7 +70,7 @@ export default function UsagePage() {
         name: "Trinity Pixels",
         description: `Recharge: ${planId}`,
         order_id: order_id,
-        handler: async function (response: any) {
+        handler: async function (_response: any) {
           // Note: In real app, you'd call a verify endpoint here, 
           // but we rely on webhook for reliability. 
           // We'll just refresh after a short delay.
