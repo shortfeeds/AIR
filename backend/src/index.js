@@ -13,6 +13,7 @@ const adminRoutes = require('./routes/admin');
 const plivoRoutes = require('./routes/plivo');
 const agentRoutes = require('./routes/agent');
 const demoRoutes = require('./routes/demo');
+require('./cron/weeklyReport');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000;

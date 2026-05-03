@@ -10,24 +10,29 @@ router.get('/verify', async (req, res) => {
 
     // Look up which client owns this number
     const pn = await db.query(
-      'SELECT client_id FROM phone_numbers WHERE plivo_number = $1 AND is_active = true',
+      `SELECT pn.client_id, kb.language, kb.voice_id 
+       FROM phone_numbers pn 
+       LEFT JOIN knowledge_base kb ON kb.client_id = pn.client_id
+       WHERE pn.plivo_number = $1 AND pn.is_active = true`,
       [toNumber]
     );
     if (pn.rows.length === 0) {
       return res.type('text/xml').send('<Response><Speak>This number is not configured. Please try again later.</Speak></Response>');
     }
 
+    const { client_id: clientId, language, voice_id: voiceId } = pn.rows[0];
+
     // Check available minutes
     const sub = await db.query(
       'SELECT available_minutes FROM subscriptions WHERE client_id = $1',
-      [pn.rows[0].client_id]
+      [clientId]
     );
     if (!sub.rows.length || sub.rows[0].available_minutes <= 0) {
-      return res.type('text/xml').send('<Response><Speak>This service is temporarily unavailable. Please call back later.</Speak></Response>');
+      return res.type('text/xml').send(`<Response><Speak language="${language || 'en-IN'}" voice="${voiceId || 'Polly.Aditi'}">This service is temporarily unavailable. Please call back later.</Speak></Response>`);
     }
 
     // Minutes available — proceed with AI agent
-    res.type('text/xml').send('<Response><Speak>Connecting you to the AI assistant.</Speak></Response>');
+    res.type('text/xml').send(`<Response><Speak language="${language || 'en-IN'}" voice="${voiceId || 'Polly.Aditi'}">Connecting you to the AI assistant.</Speak></Response>`);
   } catch (err) {
     console.error('Pre-call verify error:', err);
     res.type('text/xml').send('<Response><Speak>We are experiencing issues. Please try again later.</Speak></Response>');
@@ -43,7 +48,7 @@ router.post('/post-call', async (req, res) => {
 
     // Find client by Plivo number
     const pn = await client.query(
-      `SELECT pn.client_id, cp.n8n_webhook_url, cp.business_name 
+      `SELECT pn.client_id, cp.n8n_webhook_url, cp.business_name, cp.crm_type, cp.crm_webhook_url 
        FROM phone_numbers pn 
        JOIN client_profiles cp ON cp.user_id = pn.client_id
        WHERE pn.plivo_number = $1`,
@@ -54,7 +59,7 @@ router.post('/post-call', async (req, res) => {
       return res.status(404).json({ error: 'Unknown Plivo number' });
     }
 
-    const { client_id: clientId, n8n_webhook_url: webhookUrl, business_name: businessName } = pn.rows[0];
+    const { client_id: clientId, n8n_webhook_url: webhookUrl, business_name: businessName, crm_type: crmType, crm_webhook_url: crmWebhookUrl } = pn.rows[0];
     const minutesToDeduct = Math.ceil(duration_seconds / 60);
 
     // Insert call lead
@@ -72,7 +77,7 @@ router.post('/post-call', async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Trigger WhatsApp Notification if webhook exists
+    // Trigger WhatsApp/n8n Notification if webhook exists
     if (webhookUrl) {
       fetch(webhookUrl, {
         method: 'POST',
@@ -85,7 +90,27 @@ router.post('/post-call', async (req, res) => {
           action: action_taken,
           recording: recording_url
         })
-      }).catch(e => console.error('WhatsApp notification failed:', e.message));
+      }).catch(e => console.error('n8n notification failed:', e.message));
+    }
+
+    // Trigger CRM Sync if configured
+    if (crmType !== 'none' && crmWebhookUrl) {
+      fetch(crmWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'Trinity Pixels AI',
+          client_id: clientId,
+          business_name: businessName,
+          caller: caller_number,
+          summary: ai_summary,
+          transcript: transcript,
+          duration: duration_seconds,
+          action: action_taken,
+          recording: recording_url,
+          timestamp: new Date().toISOString()
+        })
+      }).catch(e => console.error('CRM sync failed:', e.message));
     }
 
     // Check if below threshold
@@ -127,6 +152,108 @@ router.post('/fallback', async (req, res) => {
     console.error('Fallback webhook error:', err);
     res.status(500).send('<Response></Response>');
   }
+});
+
+const auth = require('../middleware/auth');
+
+// GET /api/plivo/live-calls — Fetch active calls for a client
+router.get('/live-calls', auth, async (req, res) => {
+  try {
+    const clientId = req.query.client_id; // For admin use
+    const authId = req.user?.id; // For client use (from auth middleware if added)
+    
+    const targetId = clientId || authId;
+    if (!targetId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Find the Plivo number for this client
+    const pn = await db.query('SELECT plivo_number FROM phone_numbers WHERE client_id = $1 AND is_active = true', [targetId]);
+    if (pn.rows.length === 0) return res.json({ calls: [] });
+
+    const plivoNumber = pn.rows[0].plivo_number;
+
+    if (process.env.PLIVO_AUTH_ID && process.env.PLIVO_AUTH_TOKEN) {
+      const plivo = require('plivo');
+      const client = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
+      
+      const calls = await client.calls.list({
+        status: 'in-progress',
+        to_number: plivoNumber
+      });
+
+      return res.json({ 
+        calls: calls.map(c => ({
+          call_uuid: c.callUuid,
+          from: c.from,
+          to: c.to,
+          duration: c.duration,
+          direction: c.direction
+        }))
+      });
+    }
+
+    // Mock for dev
+    res.json({ 
+      calls: [
+        // { call_uuid: 'mock-1', from: '+919876543210', to: plivoNumber, duration: '45', direction: 'inbound' }
+      ] 
+    });
+  } catch (err) {
+    console.error('Live calls error:', err);
+    res.status(500).json({ error: 'Failed to fetch live calls' });
+  }
+});
+
+// POST /api/plivo/intercept — Bridge the client into a live call
+router.post('/intercept', auth, async (req, res) => {
+  try {
+    const { call_uuid } = req.body;
+    if (!call_uuid) return res.status(400).json({ error: 'Missing call_uuid' });
+
+    const client_id = req.user.id;
+
+    // Fetch the client's transfer number
+    const profile = await db.query('SELECT transfer_number FROM client_profiles WHERE user_id = $1', [client_id]);
+    const transferNumber = profile.rows[0]?.transfer_number;
+
+    if (!transferNumber) return res.status(400).json({ error: 'No transfer number configured' });
+
+    if (process.env.PLIVO_AUTH_ID && process.env.PLIVO_AUTH_TOKEN) {
+      const plivo = require('plivo');
+      const client = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
+      
+      const conferenceName = `intercept_${call_uuid}`;
+
+      // 1. Transfer the current call to a conference
+      await client.calls.transfer(call_uuid, {
+        legs: 'aleg',
+        aleg_url: `${process.env.BACKEND_URL}/api/plivo/conference-xml?name=${conferenceName}`
+      });
+
+      // 2. Call the client and put them in the same conference
+      await client.calls.create(
+        process.env.PLIVO_SENDER_ID || 'TrinityAI',
+        transferNumber,
+        `${process.env.BACKEND_URL}/api/plivo/conference-xml?name=${conferenceName}`
+      );
+
+      return res.json({ success: true, message: 'Interception started. Your phone will ring shortly.' });
+    }
+
+    res.status(501).json({ error: 'Plivo not configured' });
+  } catch (err) {
+    console.error('Intercept error:', err);
+    res.status(500).json({ error: 'Failed to intercept call' });
+  }
+});
+
+// Helper: XML for conference bridging
+router.all('/conference-xml', (req, res) => {
+  const name = req.query.name || 'default_conf';
+  res.type('text/xml').send(`
+    <Response>
+      <Conference callbackUrl="${process.env.BACKEND_URL}/api/plivo/conference-callback">${name}</Conference>
+    </Response>
+  `);
 });
 
 module.exports = router;

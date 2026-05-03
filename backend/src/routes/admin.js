@@ -24,7 +24,16 @@ router.get('/dashboard', async (req, res) => {
 
 router.get('/clients', async (req, res) => {
   try {
-    const result = await db.query(`SELECT u.id,u.name,u.email,u.created_at,cp.business_name,cp.onboarding_status,s.plan_name,s.available_minutes,s.status as sub_status,pn.plivo_number,(SELECT MAX(call_timestamp) FROM call_leads cl WHERE cl.client_id=u.id) as last_call FROM users u LEFT JOIN client_profiles cp ON cp.user_id=u.id LEFT JOIN subscriptions s ON s.client_id=u.id LEFT JOIN phone_numbers pn ON pn.client_id=u.id AND pn.is_active=true WHERE u.role='client' ORDER BY u.created_at DESC`);
+    const result = await db.query(`
+      SELECT u.id,u.name,u.email,u.created_at,cp.business_name,cp.onboarding_status,s.plan_name,s.available_minutes,s.status as sub_status,pn.plivo_number,kb.prompt_b,kb.ab_split_active,
+      (SELECT MAX(call_timestamp) FROM call_leads cl WHERE cl.client_id=u.id) as last_call 
+      FROM users u 
+      LEFT JOIN client_profiles cp ON cp.user_id=u.id 
+      LEFT JOIN subscriptions s ON s.client_id=u.id 
+      LEFT JOIN phone_numbers pn ON pn.client_id=u.id AND pn.is_active=true 
+      LEFT JOIN knowledge_base kb ON kb.client_id=u.id
+      WHERE u.role='client' 
+      ORDER BY u.created_at DESC`);
     res.json({ clients: result.rows });
   } catch(err) { console.error(err); res.status(500).json({ error:'Failed' }); }
 });
@@ -204,6 +213,21 @@ router.patch('/clients/:id/password', async (req, res) => {
   } catch (err) {
     console.error('Password reset error:', err);
     res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// PATCH /api/admin/clients/:id/ab-test — Update A/B test settings
+router.patch('/clients/:id/ab-test', async (req, res) => {
+  try {
+    const { prompt_b, ab_split_active } = req.body;
+    await db.query(
+      'UPDATE knowledge_base SET prompt_b = $1, ab_split_active = $2 WHERE client_id = $3',
+      [prompt_b, ab_split_active, req.params.id]
+    );
+    res.json({ message: 'A/B test settings updated' });
+  } catch (err) {
+    console.error('A/B test update error:', err);
+    res.status(500).json({ error: 'Failed to update A/B test' });
   }
 });
 

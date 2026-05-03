@@ -22,6 +22,8 @@ export default function SettingsPage() {
   const [avgLeadValue, setAvgLeadValue] = useState(1000);
   const [logoUrl, setLogoUrl] = useState("");
   const [n8nWebhookUrl, setN8nWebhookUrl] = useState("");
+  const [crmType, setCrmType] = useState("none");
+  const [crmWebhookUrl, setCrmWebhookUrl] = useState("");
   const [updateNotes, setUpdateNotes] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -35,6 +37,8 @@ export default function SettingsPage() {
       setAvgLeadValue(data.settings.avg_lead_value || 1000);
       setLogoUrl(data.settings.logo_url || "");
       setN8nWebhookUrl(data.settings.n8n_webhook_url || "");
+      setCrmType(data.settings.crm_type || "none");
+      setCrmWebhookUrl(data.settings.crm_webhook_url || "");
       const h: Record<string, any> = {};
       DAYS.forEach(d => {
         const dayData = data.settings.operating_hours?.[d];
@@ -178,6 +182,34 @@ export default function SettingsPage() {
           <div>
             <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">WhatsApp Webhook (n8n)</label>
             <input value={n8nWebhookUrl} onChange={(e) => setN8nWebhookUrl(e.target.value)} className="input-field" placeholder="https://your-n8n-instance.com/webhook/..." />
+          </div>
+        </div>
+      </div>
+
+      {/* CRM Integrations */}
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>CRM Integrations</h3>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Sync leads directly to your management tools</p>
+          </div>
+          <button onClick={() => saveField("crm", "/settings/crm", { crm_type: crmType, crm_webhook_url: crmWebhookUrl })} className="btn-secondary text-sm flex items-center gap-2" disabled={saving === "crm"}>
+            {saving === "crm" ? <Loader2 className="w-4 h-4 animate-spin" /> : saved === "crm" ? <><CheckCircle className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save Integration</>}
+          </button>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">Select Provider</label>
+            <select value={crmType} onChange={(e) => setCrmType(e.target.value)} className="input-field">
+              <option value="none">No CRM (Dashboard Only)</option>
+              <option value="zoho">Zoho CRM</option>
+              <option value="hubspot">HubSpot</option>
+              <option value="custom">Custom Webhook</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">CRM Webhook URL</label>
+            <input value={crmWebhookUrl} onChange={(e) => setCrmWebhookUrl(e.target.value)} className="input-field" placeholder="https://..." disabled={crmType === "none"} />
           </div>
         </div>
       </div>

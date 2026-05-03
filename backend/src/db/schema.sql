@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS client_profiles (
   avg_lead_value INTEGER DEFAULT 1000,
   logo_url VARCHAR(500),
   n8n_webhook_url VARCHAR(500),
+  crm_type VARCHAR(50) DEFAULT 'none' CHECK (crm_type IN ('none', 'zoho', 'hubspot', 'custom')),
+  crm_webhook_url VARCHAR(500),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id)
 );
@@ -86,7 +88,8 @@ CREATE TABLE IF NOT EXISTS call_leads (
   status VARCHAR(20) DEFAULT 'new' CHECK (status IN ('new', 'followed_up', 'transferred')),
   transcript_raw TEXT,
   action_taken VARCHAR(100),
-  recording_url VARCHAR(500)
+  recording_url VARCHAR(500),
+  used_prompt CHAR(1) DEFAULT 'A'
 );
 
 CREATE INDEX IF NOT EXISTS idx_call_leads_client ON call_leads(client_id);
@@ -121,7 +124,10 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
   top_faqs JSONB DEFAULT '[]',
   ai_goal VARCHAR(100) DEFAULT 'answer_faqs' CHECK (ai_goal IN ('book_appointment', 'take_message', 'answer_faqs', 'qualify_leads')),
   booking_link VARCHAR(500),
-  language VARCHAR(50) DEFAULT 'English',
+  language VARCHAR(50) DEFAULT 'en-IN',
+  voice_id VARCHAR(50) DEFAULT 'Polly.Aditi',
+  prompt_b TEXT,
+  ab_split_active BOOLEAN DEFAULT false,
   last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   update_notes TEXT,
   update_status VARCHAR(20) DEFAULT 'current' CHECK (update_status IN ('current', 'pending_review', 'updating')),
@@ -145,5 +151,6 @@ INSERT INTO global_settings (key, value) VALUES
   "silver": {"minutes": 200, "price": 299900, "label": "Silver"},
   "gold": {"minutes": 500, "price": 499900, "label": "Gold"},
   "diamond": {"minutes": 1000, "price": 799900, "label": "Diamond"},
-  "platinum": {"minutes": 2000, "price": 999900, "label": "Platinum"}
+  "platinum": {"minutes": 2000, "price": 999900, "label": "Platinum"},
+  "trial": {"minutes": 15, "price": 59900, "label": "Trial (7 Days)"}
 }') ON CONFLICT (key) DO NOTHING;

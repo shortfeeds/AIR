@@ -29,6 +29,8 @@ export default function OnboardingPage() {
   const [services, setServices] = useState("");
   const [faqs, setFaqs] = useState([{ q: "", a: "" }, { q: "", a: "" }, { q: "", a: "" }]);
   const [aiGoal, setAiGoal] = useState("answer_faqs");
+  const [language, setLanguage] = useState("en-IN");
+  const [voiceId, setVoiceId] = useState("Polly.Aditi");
 
   const steps = [
     { label: "Business Basics", icon: Building2 },
@@ -47,6 +49,7 @@ export default function OnboardingPage() {
           business_name: businessName, city, operating_hours: hours, website_url: websiteUrl,
           transfer_number: transferNumber, transfer_mode: transferMode,
           primary_services: services, top_faqs: faqs.filter(f => f.q && f.a), ai_goal: aiGoal,
+          language, voice_id: voiceId
         }),
       });
       setStep(3);
@@ -150,6 +153,28 @@ export default function OnboardingPage() {
                   <option value="answer_faqs">Answer FAQs</option>
                   <option value="qualify_leads">Qualify Leads</option>
                 </select>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block" style={{ color: "var(--text-secondary)" }}>Language</label>
+                  <select value={language} onChange={(e) => setLanguage(e.target.value)} className="input-field">
+                    <option value="en-IN">English (India)</option>
+                    <option value="hi-IN">Hindi (India)</option>
+                    <option value="ta-IN">Tamil (India)</option>
+                    <option value="mr-IN">Marathi (India)</option>
+                    <option value="bn-IN">Bengali (India)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block" style={{ color: "var(--text-secondary)" }}>AI Voice Style</label>
+                  <select value={voiceId} onChange={(e) => setVoiceId(e.target.value)} className="input-field">
+                    <option value="Polly.Aditi">Female (Professional)</option>
+                    <option value="Polly.Kajal">Female (Friendly)</option>
+                    <option value="Polly.Raveena">Female (Clear)</option>
+                    <option value="Polly.Zhiyu">Male (Deep)</option>
+                  </select>
+                </div>
               </div>
             </div>
           )}

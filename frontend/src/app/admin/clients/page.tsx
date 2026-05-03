@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { Phone, Plus, Loader2, Settings, UserCircle, UserPlus, Key, Mail, Lock, Building } from "lucide-react";
+import { Phone, Plus, Loader2, Settings, UserCircle, UserPlus, Key, Mail, Lock, Building, Brain, Save, ExternalLink } from "lucide-react";
 
 export default function AdminClients() {
   const [clients, setClients] = useState<any[]>([]);
@@ -20,6 +20,22 @@ export default function AdminClients() {
   const [pwModal, setPwModal] = useState<{ id: string; name: string } | null>(null);
   const [newPw, setNewPw] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [abModal, setAbModal] = useState<{ id: string; name: string; promptB: string; abActive: boolean } | null>(null);
+  const [savingAb, setSavingAb] = useState(false);
+
+  const saveAbTest = async () => {
+    if (!abModal) return;
+    setSavingAb(true);
+    try {
+      await api(`/admin/clients/${abModal.id}/ab-test`, { 
+        method: "PATCH", 
+        body: JSON.stringify({ prompt_b: abModal.promptB, ab_split_active: abModal.abActive }) 
+      });
+      setClients(clients.map(c => c.id === abModal.id ? { ...c, prompt_b: abModal.promptB, ab_split_active: abModal.abActive } : c));
+      setAbModal(null);
+    } catch (e) { console.error(e); }
+    finally { setSavingAb(false); }
+  };
 
   useEffect(() => {
     api("/admin/clients").then((d) => setClients(d.clients)).catch(console.error);
@@ -131,6 +147,9 @@ export default function AdminClients() {
                     </button>
                     <button onClick={() => setPwModal({ id: c.id, name: c.name })} className="btn-ghost text-xs !py-1 !px-2" title="Reset Password">
                       <Key className="w-3 h-3" />
+                    </button>
+                    <button onClick={() => setAbModal({ id: c.id, name: c.name, promptB: c.prompt_b || "", abActive: c.ab_split_active })} className="btn-ghost text-xs !py-1 !px-2 text-amber-500" title="A/B Testing">
+                      <Brain className="w-3 h-3" />
                     </button>
                     <button onClick={() => impersonate(c.id)} className="btn-ghost text-xs !py-1 !px-2 text-indigo-400" title="Login As Client">
                       <UserCircle className="w-3 h-3" />
@@ -274,6 +293,41 @@ export default function AdminClients() {
               <button onClick={() => setPwModal(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
               <button onClick={resetPassword} disabled={resetting || !newPw} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
                 {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Update Password"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* A/B Test Modal */}
+      {abModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setAbModal(null)}>
+          <div className="card p-8 w-full max-w-xl shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-6">
+              <h3 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>AI A/B Testing — {abModal.name}</h3>
+              <p className="text-sm opacity-50">Compare two different AI personalities to see which converts better</p>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold uppercase tracking-widest opacity-40">Test Status</label>
+                  <button onClick={() => setAbModal({ ...abModal, abActive: !abModal.abActive })} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${abModal.abActive ? 'bg-indigo-600' : 'bg-gray-700'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${abModal.abActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                <p className="text-[10px] opacity-40">{abModal.abActive ? "Split traffic 50/50 between Prompt A and Prompt B" : "All traffic currently using Prompt A"}</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2 block">Alternative Prompt (B)</label>
+                <textarea value={abModal.promptB} onChange={(e) => setAbModal({ ...abModal, promptB: e.target.value })} className="input-field min-h-[150px] text-sm" placeholder="Describe the alternative AI personality, greeting, or script..." />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button onClick={() => setAbModal(null)} className="btn-secondary flex-1">Discard</button>
+              <button onClick={saveAbTest} disabled={savingAb} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                {savingAb ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Save Configuration <Save className="w-4 h-4" /></>}
               </button>
             </div>
           </div>

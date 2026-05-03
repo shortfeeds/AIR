@@ -8,10 +8,11 @@ const router = express.Router();
 // Plan and Top-up configuration
 const PLANS = {
   // Monthly Subscriptions (Upgrades)
-  silver:   { type: 'plan',   minutes: 200,  price: 299900, label: 'Silver — 200 mins' },
-  gold:     { type: 'plan',   minutes: 500,  price: 499900, label: 'Gold — 500 mins' },
-  diamond:  { type: 'plan',   minutes: 1000, price: 799900, label: 'Diamond — 1,000 mins' },
-  platinum: { type: 'plan',   minutes: 2000, price: 999900, label: 'Platinum — 2,000 mins' },
+  trial:    { type: 'plan',   minutes: 15,   price: 59900,  label: 'Trial — 15 mins', validityDays: 7 },
+  silver:   { type: 'plan',   minutes: 200,  price: 299900, label: 'Silver — 200 mins', validityDays: 30 },
+  gold:     { type: 'plan',   minutes: 500,  price: 499900, label: 'Gold — 500 mins', validityDays: 30 },
+  diamond:  { type: 'plan',   minutes: 1000, price: 799900, label: 'Diamond — 1,000 mins', validityDays: 30 },
+  platinum: { type: 'plan',   minutes: 2000, price: 999900, label: 'Platinum — 2,000 mins', validityDays: 30 },
   // Top-up Packs (Recharge)
   topup_100: { type: 'topup',  minutes: 100,  price: 150000, label: '100 Min Pack' },
   topup_500: { type: 'topup',  minutes: 500,  price: 600000, label: '500 Min Pack' },
@@ -122,15 +123,72 @@ router.post('/webhook', async (req, res) => {
 
         // Add minutes to subscription
         // Only update plan_name if the item purchased was a base plan, not a top-up
-        const updatePlanSql = tx.plan_name.startsWith('topup') 
-          ? `UPDATE subscriptions SET available_minutes = available_minutes + $1, total_minutes_purchased = total_minutes_purchased + $1, status = 'active' WHERE client_id = $2`
-          : `UPDATE subscriptions SET available_minutes = available_minutes + $1, total_minutes_purchased = total_minutes_purchased + $1, plan_name = $2, status = 'active' WHERE client_id = $3`;
+        const planConfig = PLANS[tx.plan_name];
+        const isTopup = tx.plan_name.startsWith('topup');
         
-        const params = tx.plan_name.startsWith('topup')
-          ? [tx.minutes_purchased, tx.client_id]
-          : [tx.minutes_purchased, tx.plan_name, tx.client_id];
+        let updatePlanSql;
+        let params;
+
+        if (isTopup) {
+          updatePlanSql = `
+            UPDATE subscriptions 
+            SET available_minutes = available_minutes + $1, 
+                total_minutes_purchased = total_minutes_purchased + $1, 
+                status = 'active' 
+            WHERE client_id = $2`;
+          params = [tx.minutes_purchased, tx.client_id];
+        } else {
+          const validity = planConfig.validityDays || 30;
+          updatePlanSql = `
+            UPDATE subscriptions 
+            SET available_minutes = available_minutes + $1, 
+                total_minutes_purchased = total_minutes_purchased + $1, 
+                plan_name = $2, 
+                status = 'active',
+                billing_cycle_start = CURRENT_DATE,
+                billing_cycle_end = CURRENT_DATE + (INTERVAL '1 day' * $3)
+            WHERE client_id = $4`;
+          params = [tx.minutes_purchased, tx.plan_name, validity, tx.client_id];
+        }
 
         await client.query(updatePlanSql, params);
+
+        // --- Zero-Touch Provisioning ---
+        // If this is a new subscription (not a top-up) and user doesn't have a number yet, try to buy one
+        if (!isTopup && process.env.PLIVO_AUTH_ID && process.env.PLIVO_AUTH_TOKEN) {
+          try {
+            const hasNumber = await client.query('SELECT id FROM phone_numbers WHERE client_id = $1', [tx.client_id]);
+            if (hasNumber.rows.length === 0) {
+              const plivo = require('plivo');
+              const plivoClient = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
+              
+              // Search for available numbers (Prefix for India +91)
+              const numbers = await plivoClient.numbers.search('IN', { limit: 1 });
+              if (numbers.length > 0) {
+                const numberToBuy = numbers[0].number;
+                await plivoClient.numbers.buy(numberToBuy, {
+                  app_id: process.env.PLIVO_APP_ID || '' // Default app ID for AI handling
+                });
+                
+                await client.query(
+                  'INSERT INTO phone_numbers (client_id, plivo_number, is_active) VALUES ($1, $2, true)',
+                  [tx.client_id, numberToBuy]
+                );
+                
+                // Update onboarding status to active since number is assigned
+                await client.query(
+                  'UPDATE client_profiles SET onboarding_status = \'active\' WHERE user_id = $1',
+                  [tx.client_id]
+                );
+                
+                console.log(`✅ Auto-provisioned Plivo number ${numberToBuy} for client ${tx.client_id}`);
+              }
+            }
+          } catch (provisionErr) {
+            console.error('❌ Zero-touch provisioning failed:', provisionErr.message);
+            // Don't fail the whole payment if provisioning fails, admin can do it manually
+          }
+        }
 
         await client.query('COMMIT');
         console.log(`✅ Payment captured: ${paymentId}, ${tx.minutes_purchased} minutes added for client ${tx.client_id}`);
