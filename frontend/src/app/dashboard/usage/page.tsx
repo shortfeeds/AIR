@@ -113,10 +113,10 @@ export default function UsagePage() {
           <div className="relative w-48 h-48 mb-6">
             <svg className="w-full h-full transform -rotate-90">
               <circle cx="96" cy="96" r="88" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-white/5" />
-              <circle cx="96" cy="96" r="88" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray={552.92} strokeDashoffset={552.92 * (1 - usedPercent / 100)} className="text-indigo-500 transition-all duration-1000" strokeLinecap="round" />
+              <circle cx="96" cy="96" r="88" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray={552.92} strokeDashoffset={552.92 * (1 - usedPercent / 100)} className={`${isLowMinutes ? "text-amber-500" : "text-indigo-500"} transition-all duration-1000`} strokeLinecap="round" />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center transform rotate-90">
-              <span className="text-5xl font-bold" style={{ color: "var(--text-primary)" }}>{sub?.available_minutes || 0}</span>
+              <span className={`text-5xl font-bold ${isLowMinutes ? "text-amber-500" : ""}`} style={{ color: "var(--text-primary)" }}>{sub?.available_minutes || 0}</span>
               <span className="text-[10px] uppercase font-bold opacity-40 mt-1">Minutes Left</span>
             </div>
           </div>
