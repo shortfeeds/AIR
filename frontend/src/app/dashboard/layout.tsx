@@ -5,6 +5,8 @@ import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import { api, getToken } from "@/lib/api";
 
+import { useQuery } from "@tanstack/react-query";
+
 interface UserData {
   name: string;
   role: string;
@@ -15,26 +17,36 @@ interface UserData {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [user, setUser] = useState<UserData | null>(null);
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const { data: userRes, isLoading: isLoadingUser, isError: isUserError } = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: async () => {
+      const token = getToken();
+      if (!token) throw new Error("No token");
+      return api("/auth/me");
+    },
+    retry: false
+  });
+
+  const { data: alertsRes } = useQuery({
+    queryKey: ['alerts'],
+    queryFn: () => api("/alerts"),
+    enabled: !!userRes?.user
+  });
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) { router.push("/login"); return; }
+    if (isUserError) {
+      router.push("/login");
+    } else if (userRes?.user?.role === "admin") {
+      router.push("/admin");
+    }
+  }, [isUserError, userRes, router]);
 
-    Promise.all([
-      api("/auth/me"),
-      api("/alerts")
-    ]).then(([userData, alertsData]) => {
-      if (userData.user.role === "admin") { router.push("/admin"); return; }
-      setUser(userData.user);
-      setAlerts(alertsData.alerts || []);
-      setLoading(false);
-    }).catch(() => { router.push("/login"); });
-  }, [router]);
+  const loading = isLoadingUser;
+  const user = userRes?.user as UserData | undefined;
+  const alerts = alertsRes?.alerts || [];
 
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="h-screen flex items-center justify-center" style={{ background: "var(--bg-primary)" }}>
         <div className="animate-spin w-8 h-8 border-2 rounded-full" style={{ borderColor: "var(--border-subtle)", borderTopColor: "var(--brand-500)" }} />
@@ -66,7 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         )}
         <Topbar userName={user?.name} planName={user?.plan_name} availableMinutes={user?.available_minutes} plivoNumber={user?.plivo_number} />
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-6 pb-24 md:pb-6 lg:p-8">
           {children}
         </main>
       </div>

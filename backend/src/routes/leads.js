@@ -1,11 +1,12 @@
 const express = require('express');
 const db = require('../db/pool');
 const auth = require('../middleware/auth');
+const { validateLeadStatus, validateLeadQuery, validateUUID } = require('../middleware/validate');
 
 const router = express.Router();
 
 // GET /api/leads — Get leads for the authenticated client
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, validateLeadQuery, async (req, res) => {
   try {
     const { status, limit = 50, offset = 0 } = req.query;
     let query = `SELECT * FROM call_leads WHERE client_id = $1`;
@@ -40,7 +41,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // PATCH /api/leads/:id/status — Update lead status
-router.patch('/:id/status', auth, async (req, res) => {
+router.patch('/:id/status', auth, validateUUID, validateLeadStatus, async (req, res) => {
   try {
     const { status } = req.body;
 
@@ -76,17 +77,23 @@ router.get('/stats', auth, async (req, res) => {
         COUNT(*) FILTER (WHERE status = 'followed_up' AND call_timestamp >= CURRENT_DATE) as followed_up_today,
         COUNT(*) FILTER (WHERE status = 'new') as total_new_leads,
         COUNT(*) as total_leads,
-        (SELECT avg_lead_value FROM client_profiles WHERE user_id = $1) as avg_lead_value
-       FROM call_leads
-       WHERE client_id = $1`,
+        (SELECT avg_lead_value FROM client_profiles WHERE user_id = $1) as avg_lead_value,
+        chs.score as health_score,
+        chs.grade as health_grade
+       FROM call_leads cl
+       LEFT JOIN client_health_scores chs ON chs.client_id = $1
+       WHERE cl.client_id = $1
+       ORDER BY chs.computed_at DESC LIMIT 1`,
       [req.user.id]
     );
 
     const stats = result.rows[0];
-    stats.minutes_today = Math.ceil(parseInt(stats.minutes_today) / 60);
-    stats.total_revenue_saved = stats.total_leads * (stats.avg_lead_value || 1000);
+    if (stats) {
+      stats.minutes_today = Math.ceil(parseInt(stats.minutes_today) / 60);
+      stats.total_revenue_saved = stats.total_leads * (stats.avg_lead_value || 1000);
+    }
 
-    res.json({ stats });
+    res.json({ stats: stats || {} });
   } catch (err) {
     console.error('Get stats error:', err);
     res.status(500).json({ error: 'Failed to fetch stats' });

@@ -7,10 +7,14 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 export default function AdminDashboard() {
   const [data, setData] = useState<any>(null);
   const [trends, setTrends] = useState<any>(null);
+  const [healthScores, setHealthScores] = useState<any[]>([]);
+  const [timeline, setTimeline] = useState<any[]>([]);
 
   useEffect(() => {
     api("/admin/dashboard").then(setData).catch(console.error);
     api("/admin/analytics/trends").then(setTrends).catch(console.error);
+    api("/admin/health-scores").then((d) => setHealthScores(d.scores)).catch(console.error);
+    api("/admin/activity").then((d) => setTimeline(d.timeline)).catch(console.error);
   }, []);
 
   if (!data) return <div className="animate-pulse text-center py-20" style={{ color: "var(--text-muted)" }}>Loading...</div>;
@@ -86,6 +90,33 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
+        {/* Client Health Scores */}
+        <div className="card overflow-hidden">
+          <div className="p-5 border-b" style={{ borderColor: "var(--border-subtle)" }}>
+            <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Critical Health Scores (High Churn Risk)</h3>
+          </div>
+          {healthScores.filter(s => s.score < 50).length === 0 ? (
+            <p className="p-6 text-sm text-center" style={{ color: "var(--text-muted)" }}>All clients are healthy ✅</p>
+          ) : (
+            <div className="divide-y max-h-[300px] overflow-y-auto" style={{ borderColor: "var(--border-subtle)" }}>
+              {healthScores.filter(s => s.score < 50).map((c: any) => (
+                <div key={c.id} className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{c.business_name || c.name}</p>
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{c.email}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-bold ${c.grade === 'F' ? 'text-red-500' : 'text-orange-500'}`}>
+                      Grade: {c.grade}
+                    </span>
+                    <span className="badge badge-warning">{c.score}/100</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Low Minutes Alerts */}
         <div className="card overflow-hidden">
           <div className="p-5 border-b flex items-center gap-2" style={{ borderColor: "var(--border-subtle)" }}>
@@ -95,7 +126,7 @@ export default function AdminDashboard() {
           {data.low_minutes_alerts.length === 0 ? (
             <p className="p-6 text-sm text-center" style={{ color: "var(--text-muted)" }}>All clients have sufficient minutes ✅</p>
           ) : (
-            <div className="divide-y" style={{ borderColor: "var(--border-subtle)" }}>
+            <div className="divide-y max-h-[300px] overflow-y-auto" style={{ borderColor: "var(--border-subtle)" }}>
               {data.low_minutes_alerts.map((c: any) => (
                 <div key={c.id} className="p-4 flex items-center justify-between">
                   <div>
@@ -108,31 +139,34 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
-
-        {/* Recent Signups */}
-        <div className="card overflow-hidden">
-          <div className="p-5 border-b" style={{ borderColor: "var(--border-subtle)" }}>
-            <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Recent Signups</h3>
-          </div>
-          {data.recent_signups.length === 0 ? (
-            <p className="p-6 text-sm text-center" style={{ color: "var(--text-muted)" }}>No recent signups</p>
-          ) : (
-            <div className="divide-y" style={{ borderColor: "var(--border-subtle)" }}>
-              {data.recent_signups.map((c: any) => (
-                <div key={c.id} className="p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{c.name}</p>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{new Date(c.created_at).toLocaleDateString("en-IN")}</p>
-                  </div>
-                  <span className={`badge ${c.onboarding_status === "active" ? "badge-success" : "badge-warning"}`}>
-                    {c.onboarding_status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
+
+      {/* Activity Timeline */}
+      <div className="card overflow-hidden">
+        <div className="p-5 border-b" style={{ borderColor: "var(--border-subtle)" }}>
+          <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Platform Activity Timeline</h3>
+        </div>
+        {timeline.length === 0 ? (
+          <p className="p-6 text-sm text-center" style={{ color: "var(--text-muted)" }}>No recent activity</p>
+        ) : (
+          <div className="divide-y max-h-[400px] overflow-y-auto" style={{ borderColor: "var(--border-subtle)" }}>
+            {timeline.slice(0, 50).map((t: any) => (
+              <div key={t.id} className="p-4 flex items-start gap-4">
+                <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: "var(--brand-400)" }} />
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{t.title}</p>
+                  {t.description && <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{t.description}</p>}
+                  <p className="text-xs mt-1 opacity-70" style={{ color: "var(--text-muted)" }}>
+                    {new Date(t.created_at).toLocaleString("en-IN")} 
+                    {t.client_name && ` · Client: ${t.client_name}`}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

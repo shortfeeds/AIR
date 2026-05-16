@@ -2,6 +2,8 @@ const express = require('express');
 const crypto = require('crypto');
 const db = require('../db/pool');
 const auth = require('../middleware/auth');
+const { sendInvoiceEmail } = require('../services/email');
+const htmlPdf = require('html-pdf-node');
 
 const router = express.Router();
 
@@ -97,7 +99,7 @@ router.post('/create-order', auth, async (req, res) => {
         
         if (planConfig.price > currentPrice) {
           const end = new Date(sub.billing_cycle_end);
-          const diffDays = Math.ceil((end.getTime() - Date.now()) / (1000 * 3000 * 24)); // Roughly
+          const diffDays = Math.ceil((end.getTime() - Date.now()) / (1000 * 3600 * 24));
           const remainingDays = Math.max(1, Math.min(30, diffDays));
           const proRated = Math.round((planConfig.price - currentPrice) * (remainingDays / 30));
           planConfig.price = Math.max(50000, proRated);
@@ -172,6 +174,16 @@ router.post('/webhook', async (req, res) => {
       const payment = event.payload.payment.entity;
       const orderId = payment.order_id;
       const paymentId = payment.id;
+
+      // Find the pending transaction (idempotency: check if already processed)
+      const alreadyProcessed = await db.query(
+        'SELECT id FROM transactions WHERE razorpay_payment_id = $1 AND status = $2',
+        [paymentId, 'captured']
+      );
+      if (alreadyProcessed.rows.length > 0) {
+        console.log(`⚠️ Payment ${paymentId} already processed, skipping duplicate webhook.`);
+        return res.status(200).json({ status: 'ok', message: 'Already processed' });
+      }
 
       // Find the pending transaction
       const txResult = await db.query(
@@ -266,8 +278,29 @@ router.post('/webhook', async (req, res) => {
           }
         }
 
-        await client.query('COMMIT');
         console.log(`✅ Payment captured: ${paymentId}, ${tx.minutes_purchased} minutes added for client ${tx.client_id}`);
+
+        // --- Phase 4: Automated PDF Invoice Email ---
+        try {
+          const clientDetails = await db.query('SELECT u.email, cp.business_name FROM users u JOIN client_profiles cp ON cp.user_id = u.id WHERE u.id = $1', [tx.client_id]);
+          if (clientDetails.rows.length > 0) {
+            const clientEmail = clientDetails.rows[0].email;
+            const businessName = clientDetails.rows[0].business_name || 'Customer';
+            
+            // Generate HTML for PDF
+            const invoiceHtml = generateInvoiceHtml({ ...tx, razorpay_payment_id: paymentId, business_name: businessName, client_email: clientEmail }, clientDetails.rows[0].name);
+            
+            // Convert to PDF
+            const options = { format: 'A4', margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' } };
+            const pdfBuffer = await htmlPdf.generatePdf({ content: invoiceHtml }, options);
+            
+            // Send Email
+            await sendInvoiceEmail(clientEmail, businessName, paymentId, tx.amount_inr, pdfBuffer);
+          }
+        } catch (emailErr) {
+          console.error('❌ Failed to send invoice email:', emailErr.message);
+        }
+
       } catch (dbErr) {
         await client.query('ROLLBACK');
         throw dbErr;
@@ -310,9 +343,26 @@ router.get('/invoice/:id', auth, async (req, res) => {
     }
 
     const tx = result.rows[0];
+    const html = generateInvoiceHtml(tx, tx.client_name);
 
-    // Simple, clean HTML template for printing
-    const html = `
+    if (req.query.pdf === 'true') {
+      const options = { format: 'A4', margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' } };
+      const pdfBuffer = await htmlPdf.generatePdf({ content: html }, options);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=Invoice_${tx.razorpay_payment_id || tx.id}.pdf`);
+      return res.send(pdfBuffer);
+    }
+
+    res.send(html);
+  } catch (err) {
+    console.error('Invoice error:', err);
+    res.status(500).send('Failed to generate invoice');
+  }
+});
+
+// Helper function to generate Invoice HTML
+function generateInvoiceHtml(tx, clientName) {
+  return `
       <!DOCTYPE html>
       <html>
       <head>
@@ -331,7 +381,7 @@ router.get('/invoice/:id', auth, async (req, res) => {
         </style>
       </head>
       <body>
-        <div className="no-print" style="margin-bottom: 20px;">
+        <div class="no-print" style="margin-bottom: 20px;">
           <button onclick="window.print()">Print Invoice</button>
         </div>
         <div class="header">
@@ -379,13 +429,7 @@ router.get('/invoice/:id', auth, async (req, res) => {
         </div>
       </body>
       </html>
-    `;
-
-    res.send(html);
-  } catch (err) {
-    console.error('Invoice error:', err);
-    res.status(500).send('Failed to generate invoice');
-  }
-});
+  `;
+}
 
 module.exports = router;

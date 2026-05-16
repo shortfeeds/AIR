@@ -40,6 +40,28 @@ async function initDatabase() {
 
     console.log('✅ Schema updated successfully');
 
+    // Run Migrations from src/db/migrations
+    const migrationsDir = path.join(__dirname, 'migrations');
+    if (fs.existsSync(migrationsDir)) {
+      const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+      for (const file of files) {
+        console.log(`Running migration: ${file}`);
+        const migrationSQL = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+        const mStatements = migrationSQL.split(';').filter(s => s.trim().length > 0);
+        for (const statement of mStatements) {
+          try {
+            await db.query(statement);
+          } catch (e) {
+            // Ignore "already exists" errors for migrations
+            if (e.code !== '42P07' && e.code !== '42P01' && e.code !== '42710' && !e.message.includes('already exists')) {
+              console.log(`⚠️ Error in migration ${file}:`, e.message);
+            }
+          }
+        }
+      }
+      console.log('✅ Migrations applied successfully');
+    }
+
     // Create admin user with proper hash
     const adminPassword = 'TP@2026%';
     const hash = await bcrypt.hash(adminPassword, 10);

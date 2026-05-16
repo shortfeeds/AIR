@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "react-hot-toast";
 import { api } from "@/lib/api";
 import { Phone, Loader2, CheckCircle, Globe, Database, Layout, Clock } from "lucide-react";
 
@@ -31,8 +33,13 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
+  const { data, isLoading } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => api("/settings")
+  });
+
   useEffect(() => {
-    api("/settings").then((data) => {
+    if (data?.settings) {
       setTransferNumber(data.settings.transfer_number || "");
       setTransferMode(data.settings.transfer_mode || "on_request");
       setLanguage(data.settings.knowledge?.language || "English");
@@ -49,18 +56,28 @@ export default function SettingsPage() {
       if (data.settings.operating_hours) {
         setHours(data.settings.operating_hours);
       }
-    }).catch(console.error);
-  }, []);
+    }
+  }, [data]);
 
   const saveField = async (field: string, endpoint: string, body: any) => {
     setSaving(field);
     try {
       await api(endpoint, { method: "PATCH", body: JSON.stringify(body) });
-      setSaved(field);
-      setTimeout(() => setSaved(null), 2000);
-    } catch (e) { console.error(e); }
-    finally { setSaving(null); }
+      toast.success("Settings saved successfully!");
+    } catch (e: any) { 
+      toast.error(e.message || "Failed to save settings");
+    } finally { 
+      setSaving(null); 
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in max-w-4xl mx-auto">

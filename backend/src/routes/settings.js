@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db/pool');
 const auth = require('../middleware/auth');
+const { validateTransferSettings, validateAISettings, validateBrandSettings, validateCRMSettings } = require('../middleware/validate');
 
 const router = express.Router();
 
@@ -29,7 +30,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // PATCH /api/settings/ai — Update AI preferences (Language, Booking Link, KB)
-router.patch('/ai', auth, async (req, res) => {
+router.patch('/ai', auth, validateAISettings, async (req, res) => {
   try {
     const { language, booking_link, primary_services, top_faqs, ai_goal } = req.body;
 
@@ -52,7 +53,7 @@ router.patch('/ai', auth, async (req, res) => {
 });
 
 // PATCH /api/settings/transfer — Update transfer number
-router.patch('/transfer', auth, async (req, res) => {
+router.patch('/transfer', auth, validateTransferSettings, async (req, res) => {
   try {
     const { transfer_number, transfer_mode } = req.body;
 
@@ -110,7 +111,7 @@ router.post('/knowledge-update', auth, async (req, res) => {
 });
 
 // PATCH /api/settings/brand — Update Brand & Notifications
-router.patch('/brand', auth, async (req, res) => {
+router.patch('/brand', auth, validateBrandSettings, async (req, res) => {
   try {
     const { avg_lead_value, logo_url, n8n_webhook_url, gstin } = req.body;
 
@@ -132,7 +133,7 @@ router.patch('/brand', auth, async (req, res) => {
 });
 
 // PATCH /api/settings/crm — Update CRM Integrations
-router.patch('/crm', auth, async (req, res) => {
+router.patch('/crm', auth, validateCRMSettings, async (req, res) => {
   try {
     const { crm_type, crm_webhook_url } = req.body;
 

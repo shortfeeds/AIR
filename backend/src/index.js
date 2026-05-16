@@ -2,6 +2,8 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env'
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/auth');
 const clientRoutes = require('./routes/clients');
@@ -16,84 +18,141 @@ const demoRoutes = require('./routes/demo');
 const alertsRoutes = require('./routes/alerts');
 const cron = require('node-cron');
 const db = require('./db/pool');
+const pinoHttp = require('pino-http');
+const logger = require('./utils/logger');
+const os = require('os');
 
 require('./cron/weeklyReport');
+require('./cron/billing');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000;
 
-// Middleware
+// Security middleware
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false,
+}));
+
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
 }));
 
+// Request logging via pino-http
+app.use(pinoHttp({ logger }));
+
+// Global rate limit: 100 requests per minute
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+app.use(globalLimiter);
+
+// Auth rate limit: 5 requests per minute
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: 'Too many login attempts, please try again later.' },
+});
+
+// Payment rate limit: 10 requests per minute
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: 'Too many payment requests, please try again later.' },
+});
+
 // Raw body for Razorpay webhook signature verification
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 
 // JSON parser for all other routes
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Root and Health check
 app.get('/', (req, res) => {
-  res.json({ message: 'Trinity Pixels Backend API is running.', frontend: process.env.FRONTEND_URL || 'http://localhost:3000' });
+  res.json({ 
+    message: 'Trinity Pixels Backend API is running.', 
+    version: '1.0.0', 
+    timestamp: new Date().toISOString() 
+  });
 });
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'Trinity Pixels API', timestamp: new Date().toISOString() });
-});
+app.get('/api/health', async (req, res) => {
+  const healthData = {
+    status: 'ok',
+    service: 'Trinity Pixels API',
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    system: {
+      loadavg: os.loadavg(),
+      freeMem: os.freemem(),
+      totalMem: os.totalmem()
+    },
+    timestamp: new Date().toISOString()
+  };
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/clients', clientRoutes);
-app.use('/api/leads', leadsRoutes);
-app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/plivo', plivoRoutes);
-app.use('/api/alerts', alertsRoutes);
-
-// Proactive Monitoring Cron (Every 30 mins)
-cron.schedule('*/30 * * * *', async () => {
-  console.log('⏰ Running low balance monitor...');
   try {
-    const clients = await db.query(
-      `SELECT s.client_id, s.available_minutes, u.email, cp.n8n_webhook_url, cp.business_name
-       FROM subscriptions s
-       JOIN users u ON u.id = s.client_id
-       JOIN client_profiles cp ON cp.user_id = u.id
-       WHERE s.available_minutes < 50 AND s.status = 'active'`
-    );
-
-    for (const client of clients.rows) {
-      if (client.n8n_webhook_url) {
-        // We only alert for specific thresholds to avoid spamming
-        if ([49, 48, 20, 19, 5, 4, 0].includes(client.available_minutes)) {
-           fetch(client.n8n_webhook_url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              event: 'low_balance_alert',
-              business_name: client.business_name,
-              minutes_left: client.available_minutes,
-              email: client.email
-            })
-          }).catch(e => console.error(`Alert failed for ${client.email}:`, e.message));
-        }
-      }
-    }
+    await db.query('SELECT 1');
+    healthData.database = 'connected';
+    res.json(healthData);
   } catch (err) {
-    console.error('Monitor error:', err);
+    logger.error('Health check database error:', err);
+    healthData.status = 'degraded';
+    healthData.database = 'disconnected';
+    res.status(503).json(healthData);
   }
 });
 
+// Routes
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/clients', clientRoutes);
+app.use('/api/leads', leadsRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/payments', paymentLimiter, paymentRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/plivo', plivoRoutes);
+app.use('/api/agent', agentRoutes);
+app.use('/api/demo', demoRoutes);
+app.use('/api/alerts', alertsRoutes);
+
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('❌ Unhandled error:', err);
+  logger.error({ err }, 'Unhandled request error');
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Trinity Pixels API running on port ${PORT}`);
+const server = app.listen(PORT, () => {
+  logger.info(`✅ Trinity Pixels API listening on port ${PORT}`);
 });
+
+// Graceful shutdown
+const shutdown = async (signal) => {
+  logger.warn(`🛑 ${signal} received. Initiating graceful shutdown...`);
+  
+  // Stop receiving new requests
+  server.close(async () => {
+    logger.info('HTTP server closed.');
+    try {
+      await db.end();
+      logger.info('Database pool closed.');
+      process.exit(0);
+    } catch (err) {
+      logger.error({ err }, 'Error during shutdown');
+      process.exit(1);
+    }
+  });
+
+  // Force shutdown after 10 seconds if graceful close hangs
+  setTimeout(() => {
+    logger.fatal('Forcefully shutting down after timeout.');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

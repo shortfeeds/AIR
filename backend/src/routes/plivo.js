@@ -5,8 +5,21 @@ const router = express.Router();
 // GET /api/plivo/verify — Pre-call verification (must respond < 500ms)
 router.get('/verify', async (req, res) => {
   try {
-    const toNumber = req.query.to_number;
+    const toNumber = req.query.to_number || req.query.To;
     if (!toNumber) return res.status(400).send('<Response><Speak>Invalid request.</Speak></Response>');
+
+    // Check if this is the demo number
+    if (toNumber === process.env.DEMO_PLIVO_NUMBER) {
+      return res.type('text/xml').send(`
+        <Response>
+          <GetDigits action="${process.env.BACKEND_URL}/api/plivo/demo-verify-pin" method="POST" numDigits="4" timeout="10" retries="2">
+            <Speak>Welcome to the Trinity Pixels AI preview. Please enter your 4 digit demo PIN.</Speak>
+          </GetDigits>
+          <Speak>No input received. Goodbye.</Speak>
+        </Response>
+      `);
+    }
+
 
     // Look up which client owns this number
     const pn = await db.query(
@@ -22,20 +35,57 @@ router.get('/verify', async (req, res) => {
 
     const { client_id: clientId, language, voice_id: voiceId } = pn.rows[0];
 
-    // Check available minutes
+    // Check available minutes (Allow a 15-minute grace period)
     const sub = await db.query(
       'SELECT available_minutes FROM subscriptions WHERE client_id = $1',
       [clientId]
     );
-    if (!sub.rows.length || sub.rows[0].available_minutes <= 0) {
+    if (!sub.rows.length || sub.rows[0].available_minutes <= -15) {
       return res.type('text/xml').send(`<Response><Speak language="${language || 'en-IN'}" voice="${voiceId || 'Polly.Aditi'}">This service is temporarily unavailable. Please call back later.</Speak></Response>`);
     }
 
     // Minutes available — proceed with AI agent
+    // NOTE: If using SIP trunk to LiveKit, append <Dial><Sip> here
     res.type('text/xml').send(`<Response><Speak language="${language || 'en-IN'}" voice="${voiceId || 'Polly.Aditi'}">Connecting you to the AI assistant.</Speak></Response>`);
   } catch (err) {
     console.error('Pre-call verify error:', err);
     res.type('text/xml').send('<Response><Speak>We are experiencing issues. Please try again later.</Speak></Response>');
+  }
+});
+
+// POST /api/plivo/demo-verify-pin — Handle DTMF input for demo calls
+router.post('/demo-verify-pin', async (req, res) => {
+  try {
+    const digits = req.body.Digits;
+    const fromNumber = req.body.From;
+
+    if (!digits || digits.length !== 4) {
+      return res.type('text/xml').send('<Response><Speak>Invalid PIN. Goodbye.</Speak></Response>');
+    }
+
+    const result = await db.query(
+      `SELECT id, business_name FROM demo_sessions WHERE demo_pin = $1 AND expires_at > NOW() LIMIT 1`,
+      [digits]
+    );
+
+    if (result.rows.length === 0) {
+      return res.type('text/xml').send('<Response><Speak>Invalid or expired PIN. Goodbye.</Speak></Response>');
+    }
+
+    // Record the caller's phone number
+    if (fromNumber) {
+      await db.query(`UPDATE demo_sessions SET caller_phone = $1 WHERE demo_pin = $2`, [fromNumber, digits]);
+    }
+
+    // Proceed to connect to the AI Agent
+    res.type('text/xml').send(`
+      <Response>
+        <Speak>Connecting you to the AI assistant for ${result.rows[0].business_name}.</Speak>
+      </Response>
+    `);
+  } catch (err) {
+    console.error('Demo PIN verify error:', err);
+    res.type('text/xml').send('<Response><Speak>An error occurred. Please try again.</Speak></Response>');
   }
 });
 
@@ -82,15 +132,60 @@ router.post('/post-call', async (req, res) => {
     // -----------------------------------------------------
 
     // Insert call lead
-    await client.query(
+    const leadInsert = await client.query(
       `INSERT INTO call_leads (client_id, caller_number, call_duration_seconds, ai_summary, transcript_raw, action_taken, recording_url, lead_score, sentiment)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
       [clientId, caller_number, duration_seconds, ai_summary || '', transcript || '', action_taken || '', recording_url || '', leadScore, sentiment]
     );
+    const callLeadId = leadInsert.rows[0].id;
 
-    // Deduct minutes
+    // --- PHASE 5: Background Cloud Storage Offload ---
+    if (recording_url && process.env.S3_BUCKET_NAME) {
+      setTimeout(async () => {
+        try {
+          const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+          const s3 = new S3Client({
+            region: process.env.S3_REGION || 'auto',
+            endpoint: process.env.S3_ENDPOINT,
+            credentials: {
+              accessKeyId: process.env.S3_ACCESS_KEY,
+              secretAccessKey: process.env.S3_SECRET_KEY,
+            }
+          });
+
+          // Fetch the recording from the temporary URL
+          const response = await fetch(recording_url);
+          if (!response.ok) throw new Error(`Failed to fetch recording: ${response.statusText}`);
+          const buffer = await response.arrayBuffer();
+
+          // Upload to S3/R2
+          const key = `recordings/${clientId}/${callLeadId}-${Date.now()}.mp3`;
+          await s3.send(new PutObjectCommand({
+            Bucket: process.env.S3_BUCKET_NAME,
+            Key: key,
+            Body: Buffer.from(buffer),
+            ContentType: 'audio/mpeg',
+            ACL: 'public-read'
+          }));
+
+          // The public URL assuming typical S3 or custom domain setup
+          const finalUrl = process.env.S3_PUBLIC_URL 
+            ? `${process.env.S3_PUBLIC_URL}/${key}`
+            : `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.S3_REGION}.amazonaws.com/${key}`;
+
+          // Update database with the permanent URL
+          await db.query(`UPDATE call_leads SET recording_url = $1 WHERE id = $2`, [finalUrl, callLeadId]);
+          console.log(`Successfully offloaded recording to S3 for call lead ${callLeadId}`);
+        } catch (e) {
+          console.error(`S3 Upload worker failed for call lead ${callLeadId}:`, e);
+        }
+      }, 0);
+    }
+    // ------------------------------------------------
+
+    // Deduct minutes (Allow negative balance for grace period)
     await client.query(
-      `UPDATE subscriptions SET available_minutes = GREATEST(available_minutes - $1, 0) WHERE client_id = $2`,
+      `UPDATE subscriptions SET available_minutes = available_minutes - $1 WHERE client_id = $2`,
       [minutesToDeduct, clientId]
     );
 

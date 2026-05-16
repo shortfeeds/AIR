@@ -19,6 +19,7 @@ export default function AdminClients() {
   const [addClientModal, setAddClientModal] = useState(false);
   const [editModal, setEditModal] = useState<any | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [syncing, setSyncing] = useState<string | null>(null);
 
   // Form States
   const [plivoNumber, setPlivoNumber] = useState("");
@@ -97,11 +98,22 @@ export default function AdminClients() {
     });
   };
 
-  const filteredClients = clients.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.business_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const syncPlivo = async (clientId: string) => {
+    setSyncing(clientId);
+    try {
+      const res = await api(`/admin/clients/${clientId}/sync-plivo`, { method: "POST" });
+      alert(res.message);
+      fetchClients();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to sync history. Ensure Plivo API credentials are correct.");
+    } finally {
+      setSyncing(null);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl mx-auto">
@@ -222,6 +234,9 @@ export default function AdminClients() {
                       </button>
                       <button onClick={() => setChangePlanModal({ id: c.id, name: c.name, currentPlan: c.plan_name })} className="p-2 hover:bg-white/5 rounded-lg text-white/50 hover:text-white" title="Plan">
                         <Settings className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => syncPlivo(c.id)} disabled={syncing === c.id} className={`p-2 hover:bg-emerald-500/10 rounded-lg text-emerald-400 ${syncing === c.id ? "animate-spin" : ""}`} title="Sync Plivo History">
+                        <RefreshCw className="w-4 h-4" />
                       </button>
                       <button onClick={() => setDeleteConfirm({ id: c.id, name: c.name })} className="p-2 hover:bg-rose-500/10 rounded-lg text-rose-500" title="Delete Account">
                         <Trash2 className="w-4 h-4" />

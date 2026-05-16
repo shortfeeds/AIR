@@ -4,10 +4,10 @@ import Link from "next/link";
 import { Phone, PhoneIncoming, PhoneMissed, Clock, Users, Headphones, Shield, Zap, ChevronRight, Star, ArrowRight, CheckCircle2, MessageSquare } from "lucide-react";
 
 const plans = [
-  { name: "Silver", price: "2,999", minutes: "200", best: "Freelancers, small shops", popular: false },
-  { name: "Gold", price: "4,999", minutes: "500", best: "Clinics, salons, agencies", popular: true },
-  { name: "Diamond", price: "7,999", minutes: "1,000", best: "Growing businesses", popular: false },
-  { name: "Platinum", price: "9,999", minutes: "2,000", best: "High-volume businesses", popular: false },
+  { name: "Silver", price: "2,999", annualPrice: "2,399", minutes: "200", best: "Freelancers, small shops", popular: false },
+  { name: "Gold", price: "4,999", annualPrice: "3,999", minutes: "500", best: "Clinics, salons, agencies", popular: true },
+  { name: "Diamond", price: "7,999", annualPrice: "6,399", minutes: "1,000", best: "Growing businesses", popular: false },
+  { name: "Platinum", price: "9,999", annualPrice: "7,999", minutes: "2,000", best: "High-volume businesses", popular: false },
 ];
 
 const faqs = [
@@ -78,6 +78,11 @@ function DemoGenerator() {
               <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                 AI Receptionist for {result.business_name} is Ready!
               </p>
+              <div className="flex gap-4 mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                <span>Industry: <strong>{result.industry}</strong></span>
+                <span>Services Found: <strong>{result.services_found}</strong></span>
+                <span>FAQs Found: <strong>{result.faqs_found}</strong></span>
+              </div>
             </div>
           </div>
 
@@ -109,6 +114,7 @@ function DemoGenerator() {
 }
 
 export default function HomePage() {
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   return (
     <div className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
       {/* Nav */}
@@ -227,7 +233,55 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Section 3 — How It Works */}
+      {/* Section: Testimonials */}
+      <section className="section overflow-hidden">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold mb-6" style={{ color: "var(--text-primary)" }}>
+              Trusted by <span style={{ color: "var(--brand-400)" }}>Niche Professionals</span>
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                quote: "Before Trinity Pixels, I missed 5-10 patient calls daily during surgeries. Now, every call is handled, and my appointments have increased by 40%.",
+                author: "Dr. Anjali Verma",
+                role: "Dermatologist, Mumbai",
+                img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Anjali"
+              },
+              {
+                quote: "The AI sounds so natural that most clients think they're talking to my actual receptionist. It handles bookings perfectly while I'm with clients.",
+                author: "Rahul Mehta",
+                role: "Owner, Aura Spa & Salon",
+                img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Rahul"
+              },
+              {
+                quote: "In the legal profession, a missed call is a missed case. This AI handles the initial intake and saves me hours of screening every single week.",
+                author: "Adv. Karan Johar",
+                role: "Senior Associate, High Court",
+                img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Karan"
+              }
+            ].map((t, i) => (
+              <div key={i} className="card p-8 flex flex-col justify-between">
+                <div>
+                  <div className="flex gap-1 mb-6">
+                    {[1,2,3,4,5].map(s => <Star key={s} className="w-4 h-4 fill-amber-400 text-amber-400" />)}
+                  </div>
+                  <p className="text-lg italic leading-relaxed mb-8" style={{ color: "var(--text-secondary)" }}>&quot;{t.quote}&quot;</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <img src={t.img} alt={t.author} className="w-12 h-12 rounded-full border border-white/10" />
+                  <div>
+                    <p className="font-bold text-sm text-white">{t.author}</p>
+                    <p className="text-[10px] uppercase tracking-widest opacity-40">{t.role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
       <section id="how-it-works" className="section">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
@@ -313,7 +367,18 @@ export default function HomePage() {
           <div className="text-center mb-12">
             <p className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--brand-400)" }}>Pricing</p>
             <h2 className="text-3xl md:text-4xl font-bold mb-3" style={{ color: "var(--text-primary)" }}>Simple, Transparent Pricing</h2>
-            <p style={{ color: "var(--text-secondary)" }}>No hidden fees. No contracts. Cancel anytime.</p>
+            <p className="mb-8" style={{ color: "var(--text-secondary)" }}>No hidden fees. No contracts. Cancel anytime.</p>
+            
+            <div className="flex items-center justify-center gap-4">
+              <span className={`text-sm font-bold ${billingCycle === 'monthly' ? 'text-white' : 'text-white/40'}`}>Monthly</span>
+              <button 
+                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
+                className="w-14 h-7 rounded-full bg-white/10 p-1 relative transition-all"
+              >
+                <div className={`w-5 h-5 rounded-full bg-indigo-500 absolute top-1 transition-all ${billingCycle === 'annual' ? 'left-8' : 'left-1'}`} />
+              </button>
+              <span className={`text-sm font-bold ${billingCycle === 'annual' ? 'text-white' : 'text-white/40'}`}>Annual <span className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">Save 20%</span></span>
+            </div>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
@@ -327,9 +392,10 @@ export default function HomePage() {
                 <h3 className="text-xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>{plan.name}</h3>
                 <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>{plan.best}</p>
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-4xl font-bold" style={{ color: "var(--text-primary)" }}>₹{plan.price}</span>
+                  <span className="text-4xl font-bold" style={{ color: "var(--text-primary)" }}>₹{billingCycle === 'monthly' ? plan.price : plan.annualPrice}</span>
                   <span className="text-sm" style={{ color: "var(--text-muted)" }}>/mo</span>
                 </div>
+                <p className="text-[10px] mb-8 font-bold text-indigo-400 uppercase tracking-widest">{billingCycle === 'annual' ? 'Billed annually' : 'Billed monthly'}</p>
                 <p className="text-sm mb-8" style={{ color: "var(--text-secondary)" }}>{plan.minutes} minutes included</p>
                 <Link href="/signup" className={`block text-center w-full py-3 rounded-lg font-semibold transition-all ${plan.popular ? "btn-primary" : "btn-secondary"}`}>
                   Get Started <ChevronRight className="w-4 h-4 inline" />
@@ -408,27 +474,27 @@ export default function HomePage() {
             <div>
               <h4 className="font-bold text-sm uppercase tracking-widest mb-6" style={{ color: "var(--text-primary)" }}>Platform</h4>
               <ul className="space-y-4 text-sm" style={{ color: "var(--text-secondary)" }}>
-                <li><Link href="/#features" className="hover:text-white transition-colors">Features</Link></li>
+                <li><Link href="/#how-it-works" className="hover:text-white transition-colors">How It Works</Link></li>
                 <li><Link href="/#pricing" className="hover:text-white transition-colors">Pricing</Link></li>
                 <li><Link href="/dashboard" className="hover:text-white transition-colors">Client Portal</Link></li>
               </ul>
             </div>
 
             <div>
-              <h4 className="font-bold text-sm uppercase tracking-widest mb-6" style={{ color: "var(--text-primary)" }}>Company</h4>
+              <h4 className="font-bold text-sm uppercase tracking-widest mb-6" style={{ color: "var(--text-primary)" }}>Legal</h4>
               <ul className="space-y-4 text-sm" style={{ color: "var(--text-secondary)" }}>
-                <li><Link href="/about" className="hover:text-white transition-colors">About Us</Link></li>
-                <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
                 <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
+                <li><Link href="/refund" className="hover:text-white transition-colors">Refund Policy</Link></li>
               </ul>
             </div>
 
             <div>
-              <h4 className="font-bold text-sm uppercase tracking-widest mb-6" style={{ color: "var(--text-primary)" }}>Support</h4>
+              <h4 className="font-bold text-sm uppercase tracking-widest mb-6" style={{ color: "var(--text-primary)" }}>Contact</h4>
               <ul className="space-y-4 text-sm" style={{ color: "var(--text-secondary)" }}>
-                <li><Link href="/docs" className="hover:text-white transition-colors">Documentation</Link></li>
-                <li><Link href="/help" className="hover:text-white transition-colors">Help Center</Link></li>
+                <li><a href="mailto:support@trinitypixels.com" className="hover:text-white transition-colors">support@trinitypixels.com</a></li>
                 <li style={{ color: "var(--brand-400)" }}>+91 7710884479</li>
+                <li className="text-[10px] opacity-40 leading-relaxed uppercase tracking-tighter">Available 24/7 via AI</li>
               </ul>
             </div>
           </div>
