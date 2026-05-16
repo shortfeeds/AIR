@@ -10,10 +10,19 @@ const router = express.Router();
 // POST /api/auth/signup
 router.post('/signup', validateSignup, async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, referral_code } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required' });
+    }
+
+    // Check if referral code is valid
+    let referredBy = null;
+    if (referral_code) {
+      const referrer = await db.query('SELECT id FROM users WHERE referral_code = $1', [referral_code]);
+      if (referrer.rows.length > 0) {
+        referredBy = referrer.rows[0].id;
+      }
     }
 
     // Check if user exists
@@ -25,10 +34,10 @@ router.post('/signup', validateSignup, async (req, res) => {
     // Hash password and create user
     const hash = await bcrypt.hash(password, 10);
     const result = await db.query(
-      `INSERT INTO users (name, email, password_hash, role)
-       VALUES ($1, $2, $3, 'client')
-       RETURNING id, name, email, role, created_at`,
-      [name, email, hash]
+      `INSERT INTO users (name, email, password_hash, role, referred_by)
+       VALUES ($1, $2, $3, 'client', $4)
+       RETURNING id, name, email, role, created_at, referral_code`,
+      [name, email, hash, referredBy]
     );
 
     const user = result.rows[0];

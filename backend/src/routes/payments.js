@@ -16,6 +16,11 @@ const PLANS = {
   diamond:  { type: 'plan',   minutes: 1000, price: 799900, label: 'Diamond — 1,000 mins', validityDays: 30 },
   platinum: { type: 'plan',   minutes: 2000, price: 999900, label: 'Platinum — 2,000 mins', validityDays: 30 },
   
+  // Annual Subscriptions (Base Plans — 20% Discount)
+  silver_annual:   { type: 'plan', minutes: 2400,  price: 2879000, label: 'Silver Annual (2400 mins)', validityDays: 365 },
+  gold_annual:     { type: 'plan', minutes: 6000,  price: 4799000, label: 'Gold Annual (6000 mins)', validityDays: 365 },
+  diamond_annual:  { type: 'plan', minutes: 12000, price: 7679000, label: 'Diamond Annual (12000 mins)', validityDays: 365 },
+
   // Minute Top-up Packs (One-time)
   topup_50:   { type: 'topup',  minutes: 50,   price: 50000,   label: 'Mini (50 Mins)' },
   topup_100:  { type: 'topup',  minutes: 100,  price: 100000,  label: 'Starter (100 Mins)' },
@@ -240,6 +245,35 @@ router.post('/webhook', async (req, res) => {
         }
 
         await client.query(updatePlanSql, params);
+
+        // --- Referral Reward Logic ---
+        const userRes = await client.query('SELECT referred_by FROM users WHERE id = $1', [tx.client_id]);
+        const referredBy = userRes.rows[0]?.referred_by;
+
+        if (referredBy) {
+          // Check if this is the first payment (to avoid multi-claiming)
+          const paymentCount = await client.query('SELECT COUNT(*) FROM transactions WHERE client_id = $1 AND status = \'captured\'', [tx.client_id]);
+          if (parseInt(paymentCount.rows[0].count) === 1) {
+            const rewardMinutes = 50;
+            // 1. Grant 50 mins to the referrer
+            await client.query(
+              'UPDATE subscriptions SET available_minutes = available_minutes + $1, total_minutes_purchased = total_minutes_purchased + $1 WHERE client_id = $2',
+              [rewardMinutes, referredBy]
+            );
+            // 2. Grant 50 mins to the referee (the one who just paid)
+            await client.query(
+              'UPDATE subscriptions SET available_minutes = available_minutes + $1, total_minutes_purchased = total_minutes_purchased + $1 WHERE client_id = $2',
+              [rewardMinutes, tx.client_id]
+            );
+            // 3. Record the reward
+            await client.query(
+              'INSERT INTO referral_rewards (referrer_id, referee_id, reward_minutes, is_claimed) VALUES ($1, $2, $3, true)',
+              [referredBy, tx.client_id, rewardMinutes]
+            );
+            console.log(`🎁 Referral reward granted: 50 mins to ${referredBy} and ${tx.client_id}`);
+          }
+        }
+        // -----------------------------
 
         // --- Zero-Touch Provisioning ---
         // If this is a new subscription (not a top-up) and user doesn't have a number yet, try to buy one

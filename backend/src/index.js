@@ -130,6 +130,31 @@ const server = app.listen(PORT, () => {
   logger.info(`✅ Trinity Pixels API listening on port ${PORT}`);
 });
 
+// Real-time: Initialize Socket.io
+const { Server } = require('socket.io');
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true,
+  }
+});
+
+io.on('connection', (socket) => {
+  logger.info({ socketId: socket.id }, 'New real-time client connected');
+  
+  socket.on('join', (room) => {
+    socket.join(room);
+    logger.info({ socketId: socket.id, room }, 'Client joined room');
+  });
+
+  socket.on('disconnect', () => {
+    logger.info({ socketId: socket.id }, 'Client disconnected');
+  });
+});
+
+// Make io accessible to routes
+app.set('io', io);
+
 // Graceful shutdown
 const shutdown = async (signal) => {
   logger.warn(`🛑 ${signal} received. Initiating graceful shutdown...`);

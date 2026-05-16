@@ -9,6 +9,7 @@ import { TrendingUp, Clock, PhoneCall, Loader2, Zap } from "lucide-react";
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<any>(null);
+  const [roi, setRoi] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
 
@@ -19,8 +20,12 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const res = await api(`/leads/analytics?days=${days}`);
+      const [res, roiRes] = await Promise.all([
+        api(`/leads/analytics?days=${days}`),
+        api('/leads/roi')
+      ]);
       setData(res);
+      setRoi(roiRes);
     } catch (e) {
       console.error(e);
     } finally {
@@ -164,28 +169,28 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Resource Efficiency */}
+        {/* Resource Efficiency & ROI */}
         <div className="card p-6 flex flex-col justify-center relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5 text-indigo-500">
             <PhoneCall size={120} />
           </div>
           <div className="relative z-10">
-            <h3 className="font-bold text-white mb-1">Efficiency Metrics</h3>
-            <p className="text-xs opacity-50 mb-8">AI vs Manual performance ratio</p>
+            <h3 className="font-bold text-white mb-1">Business Value (ROI)</h3>
+            <p className="text-xs opacity-50 mb-8">Estimated impact on your bottom line</p>
             
             <div className="grid grid-cols-2 gap-8">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2">Avg. Resolution</p>
-                <p className="text-3xl font-black text-white">42<span className="text-sm opacity-30 ml-1">sec</span></p>
+                <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2">Revenue Preserved</p>
+                <p className="text-3xl font-black text-emerald-400">₹{(roi?.revenuePreserved || 0).toLocaleString('en-IN')}</p>
                 <div className="mt-2 flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
-                  <TrendingUp className="w-3 h-3" /> 12% faster
+                  <TrendingUp className="w-3 h-3" /> High quality leads
                 </div>
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2">Missed Call Recovery</p>
-                <p className="text-3xl font-black text-white">98<span className="text-sm opacity-30 ml-1">%</span></p>
-                <div className="mt-2 flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
-                  <Zap className="w-3 h-3 text-amber-400" /> Instant response
+                <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2">Staff Hours Saved</p>
+                <p className="text-3xl font-black text-white">{roi?.hoursSaved || 0}<span className="text-sm opacity-30 ml-1">h</span></p>
+                <div className="mt-2 flex items-center gap-1 text-[10px] text-amber-400 font-bold">
+                  <Clock className="w-3 h-3 text-amber-400" /> Automated reception
                 </div>
               </div>
             </div>

@@ -138,6 +138,19 @@ router.post('/post-call', async (req, res) => {
       [clientId, caller_number, duration_seconds, ai_summary || '', transcript || '', action_taken || '', recording_url || '', leadScore, sentiment]
     );
     const callLeadId = leadInsert.rows[0].id;
+    
+    // Emit Real-time Event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(clientId).emit('new_lead', {
+        id: callLeadId,
+        caller_number,
+        duration_seconds,
+        ai_summary,
+        lead_score: leadScore,
+        sentiment
+      });
+    }
 
     // --- PHASE 5: Background Cloud Storage Offload ---
     if (recording_url && process.env.S3_BUCKET_NAME) {

@@ -5,11 +5,15 @@ const { validateLeadStatus, validateLeadQuery, validateUUID } = require('../midd
 
 const router = express.Router();
 
+const { getPagination, formatPaginated } = require('../utils/pagination');
+
 // GET /api/leads — Get leads for the authenticated client
 router.get('/', auth, validateLeadQuery, async (req, res) => {
   try {
-    const { status, limit = 50, offset = 0 } = req.query;
-    let query = `SELECT * FROM call_leads WHERE client_id = $1`;
+    const { status } = req.query;
+    const { limit, offset, page } = getPagination(req.query);
+    
+    let query = `SELECT * FROM call_leads WHERE client_id = $1 AND deleted_at IS NULL`;
     const params = [req.user.id];
     let paramIndex = 2;
 
@@ -20,23 +24,55 @@ router.get('/', auth, validateLeadQuery, async (req, res) => {
     }
 
     query += ` ORDER BY call_timestamp DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    params.push(parseInt(limit), parseInt(offset));
+    params.push(limit, offset);
 
     const result = await db.query(query, params);
 
     // Get total count
     const countResult = await db.query(
-      'SELECT COUNT(*) as total FROM call_leads WHERE client_id = $1',
+      'SELECT COUNT(*) as total FROM call_leads WHERE client_id = $1 AND deleted_at IS NULL',
       [req.user.id]
     );
+    const total = parseInt(countResult.rows[0].total);
 
-    res.json({
-      leads: result.rows,
-      total: parseInt(countResult.rows[0].total),
-    });
+    res.json(formatPaginated(result.rows, total, page, limit));
   } catch (err) {
     console.error('Get leads error:', err);
     res.status(500).json({ error: 'Failed to fetch leads' });
+  }
+});
+
+// GET /api/leads/roi — Get ROI metrics for the authenticated client
+router.get('/roi', auth, async (req, res) => {
+  try {
+    const stats = await db.query(`
+      SELECT 
+        COUNT(*) as total_calls,
+        SUM(call_duration_seconds) as total_seconds,
+        COUNT(*) FILTER (WHERE status = 'followed_up' OR lead_score > 70) as leads_captured,
+        COUNT(*) FILTER (WHERE status = 'transferred') as calls_transferred
+      FROM call_leads
+      WHERE client_id = $1 AND deleted_at IS NULL
+    `, [req.user.id]);
+
+    const profile = await db.query('SELECT avg_lead_value FROM client_profiles WHERE user_id = $1', [req.user.id]);
+    const avgLeadValue = profile.rows[0]?.avg_lead_value || 1000;
+
+    const data = stats.rows[0];
+    const totalMinutes = Math.ceil(data.total_seconds / 60);
+    const hoursSaved = (totalMinutes / 60).toFixed(1);
+    const revenuePreserved = data.leads_captured * avgLeadValue;
+
+    res.json({
+      totalCalls: parseInt(data.total_calls),
+      leadsCaptured: parseInt(data.leads_captured),
+      hoursSaved: parseFloat(hoursSaved),
+      revenuePreserved: parseInt(revenuePreserved),
+      callsTransferred: parseInt(data.calls_transferred)
+    });
+  } catch (err) {
+    console.error('ROI calculation error:', err);
+    res.status(500).json({ error: 'Failed to calculate ROI' });
   }
 });
 
@@ -51,7 +87,7 @@ router.patch('/:id/status', auth, validateUUID, validateLeadStatus, async (req, 
 
     const result = await db.query(
       `UPDATE call_leads SET status = $1
-       WHERE id = $2 AND client_id = $3
+       WHERE id = $2 AND client_id = $3 AND deleted_at IS NULL
        RETURNING *`,
       [status, req.params.id, req.user.id]
     );
@@ -64,6 +100,25 @@ router.patch('/:id/status', auth, validateUUID, validateLeadStatus, async (req, 
   } catch (err) {
     console.error('Update lead error:', err);
     res.status(500).json({ error: 'Failed to update lead' });
+  }
+});
+
+// DELETE /api/leads/:id — Soft delete a lead
+router.delete('/:id', auth, validateUUID, async (req, res) => {
+  try {
+    const result = await db.query(
+      'UPDATE call_leads SET deleted_at = NOW() WHERE id = $1 AND client_id = $2 RETURNING id',
+      [req.params.id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+
+    res.json({ message: 'Lead deleted successfully' });
+  } catch (err) {
+    console.error('Delete lead error:', err);
+    res.status(500).json({ error: 'Failed to delete lead' });
   }
 });
 

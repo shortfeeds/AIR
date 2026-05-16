@@ -112,7 +112,20 @@ ${data.booking_link ? `3. If the user wants to book an appointment, provide them
     });
   } catch (err) {
     console.error('Agent prompt generation error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    
+    // Fallback: Default resilient prompt if DB/config fails
+    const defaultPrompt = `
+You are a helpful AI Assistant. Our team is currently experiencing technical difficulties with our knowledge base, but I can still take your name and number and have someone call you back. How can I help you today?
+    `.trim();
+    
+    res.status(200).json({ 
+      prompt: defaultPrompt,
+      language: 'en-IN',
+      voice_id: 'Polly.Aditi',
+      plan: 'silver',
+      used_prompt: 'A',
+      is_fallback: true
+    });
   }
 });
 
