@@ -34,6 +34,21 @@ async function initDatabase() {
       await db.query("ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_plan_name_check CHECK (plan_name IN ('free_trial', 'trial', 'silver', 'gold', 'diamond', 'platinum', 'enterprise'))");
       
       await db.query('ALTER TABLE call_leads ADD COLUMN IF NOT EXISTS used_prompt CHAR(1) DEFAULT \'A\'');
+
+      // Update client_profiles with new SaaS onboarding and webhook columns
+      await db.query('ALTER TABLE client_profiles ADD COLUMN IF NOT EXISTS avg_lead_value INTEGER DEFAULT 1000');
+      await db.query('ALTER TABLE client_profiles ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)');
+      await db.query('ALTER TABLE client_profiles ADD COLUMN IF NOT EXISTS n8n_webhook_url VARCHAR(500)');
+      await db.query('ALTER TABLE client_profiles ADD COLUMN IF NOT EXISTS gstin VARCHAR(20)');
+      await db.query('ALTER TABLE client_profiles ADD COLUMN IF NOT EXISTS crm_type VARCHAR(50) DEFAULT \'none\'');
+      await db.query('ALTER TABLE client_profiles ADD COLUMN IF NOT EXISTS crm_webhook_url VARCHAR(500)');
+      
+      try {
+        await db.query('ALTER TABLE client_profiles DROP CONSTRAINT IF EXISTS client_profiles_crm_type_check');
+        await db.query("ALTER TABLE client_profiles ADD CONSTRAINT client_profiles_crm_type_check CHECK (crm_type IN ('none', 'zoho', 'hubspot', 'custom'))");
+      } catch (err) {
+        // Ignore constraint issues
+      }
     } catch (e) {
       console.log('⚠️ Migration notice (can usually be ignored):', e.message);
     }
