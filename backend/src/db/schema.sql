@@ -157,3 +157,11 @@ INSERT INTO global_settings (key, value) VALUES
   "scale": {"minutes": 1500, "price": 999900, "label": "Scale"},
   "trial": {"minutes": 30, "price": 99900, "label": "Trial (30 Mins)"}
 }') ON CONFLICT (key) DO NOTHING;
+
+-- Plivo sub-accounts credentials isolation
+CREATE TABLE IF NOT EXISTS plivo_subaccounts (
+  client_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  plivo_sub_auth_id VARCHAR(255) NOT NULL,
+  plivo_sub_auth_token VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

@@ -3,6 +3,7 @@ const db = require('../db/pool');
 const auth = require('../middleware/auth');
 const adminOnly = require('../middleware/adminOnly');
 const { validateUUID, validateCreateClient, validateAddMinutes, validateChangePlan, validatePasswordReset } = require('../middleware/validate');
+const { getPlivoClient, ensurePlivoSubaccount } = require('../services/plivoClient');
 const router = express.Router();
 router.use(auth, adminOnly);
 
@@ -56,9 +57,19 @@ router.post('/clients/:id/assign-number', async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    // 1. Fetch user to get name for subaccount
+    const userRes = await client.query('SELECT name FROM users WHERE id = $1', [req.params.id]);
+    if (userRes.rows.length === 0) {
+      throw new Error('Client not found');
+    }
+    const clientName = userRes.rows[0].name;
+
+    // 2. Ensure Plivo sub-account exists
+    await ensurePlivoSubaccount(req.params.id, clientName);
+
+    // 3. Buy phone number under sub-account if requested
     if (buy && process.env.PLIVO_AUTH_ID && process.env.PLIVO_AUTH_TOKEN) {
-      const plivo = require('plivo');
-      const plivoClient = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
+      const plivoClient = await getPlivoClient(req.params.id);
       await plivoClient.numbers.buy(plivo_number, { app_id: process.env.PLIVO_APP_ID || '' });
     }
 
@@ -77,7 +88,7 @@ router.post('/clients/:id/assign-number', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Assign number error:', err);
-    res.status(500).json({ error: 'Failed to assign number' });
+    res.status(500).json({ error: 'Failed to assign number: ' + err.message });
   } finally {
     client.release();
   }
@@ -456,8 +467,7 @@ router.post('/clients/:id/sync-plivo', async (req, res) => {
 
     // 2. Fetch logs from Plivo
     if (!process.env.PLIVO_AUTH_ID || !process.env.PLIVO_AUTH_TOKEN) return res.status(501).json({ error: 'Plivo not configured' });
-    const plivo = require('plivo');
-    const plivoClient = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
+    const plivoClient = await getPlivoClient(clientId);
     
     // Get last 50 calls for this number
     const calls = await plivoClient.calls.list({

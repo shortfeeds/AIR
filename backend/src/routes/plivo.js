@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db/pool');
+const { getPlivoClient } = require('../services/plivoClient');
 const router = express.Router();
 
 // GET /api/plivo/verify — Pre-call verification (must respond < 500ms)
@@ -362,8 +363,7 @@ router.get('/live-calls', auth, async (req, res) => {
     const plivoNumber = pn.rows[0].plivo_number;
 
     if (process.env.PLIVO_AUTH_ID && process.env.PLIVO_AUTH_TOKEN) {
-      const plivo = require('plivo');
-      const client = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
+      const client = await getPlivoClient(targetId);
       
       const calls = await client.calls.list({
         status: 'in-progress',
@@ -408,8 +408,7 @@ router.post('/intercept', auth, async (req, res) => {
     if (!transferNumber) return res.status(400).json({ error: 'No transfer number configured' });
 
     if (process.env.PLIVO_AUTH_ID && process.env.PLIVO_AUTH_TOKEN) {
-      const plivo = require('plivo');
-      const client = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
+      const client = await getPlivoClient(client_id);
       
       const conferenceName = `intercept_${call_uuid}`;
 
