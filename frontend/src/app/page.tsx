@@ -7,7 +7,7 @@ const plans = [
   { name: "Starter", price: "2,999", annualPrice: "2,399", minutes: "200", best: "Freelancers, small shops", popular: false },
   { name: "Growth", price: "4,999", annualPrice: "3,999", minutes: "500", best: "Clinics, salons, agencies", popular: true },
   { name: "Pro", price: "7,999", annualPrice: "6,399", minutes: "1,000", best: "Growing businesses", popular: false },
-  { name: "Scale", price: "9,999", annualPrice: "7,999", minutes: "2,000", best: "High-volume businesses", popular: false },
+  { name: "Scale", price: "9,999", annualPrice: "7,999", minutes: "1,500", best: "High-volume businesses", popular: false },
 ];
 
 const faqs = [

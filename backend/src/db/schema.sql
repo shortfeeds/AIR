@@ -154,6 +154,6 @@ INSERT INTO global_settings (key, value) VALUES
   "starter": {"minutes": 200, "price": 299900, "label": "Starter"},
   "growth": {"minutes": 500, "price": 499900, "label": "Growth"},
   "pro": {"minutes": 1000, "price": 799900, "label": "Pro"},
-  "scale": {"minutes": 2000, "price": 999900, "label": "Scale"},
-  "trial": {"minutes": 15, "price": 59900, "label": "Trial (7 Days)"}
+  "scale": {"minutes": 1500, "price": 999900, "label": "Scale"},
+  "trial": {"minutes": 30, "price": 99900, "label": "Trial (30 Mins)"}
 }') ON CONFLICT (key) DO NOTHING;

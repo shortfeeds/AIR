@@ -10,17 +10,17 @@ const router = express.Router();
 // Plan, Top-up, and Add-on configuration
 const PLANS = {
   // Monthly Subscriptions (Base Plans)
-  trial:    { type: 'plan',   minutes: 15,   price: 59900,  label: 'Trial — 15 Mins', validityDays: 7 },
+  trial:    { type: 'plan',   minutes: 30,   price: 99900,  label: 'Trial — 30 Mins', validityDays: 7 },
   starter:  { type: 'plan',   minutes: 200,  price: 299900, label: 'Starter — 200 Mins', validityDays: 30 },
   growth:   { type: 'plan',   minutes: 500,  price: 499900, label: 'Growth — 500 Mins', validityDays: 30 },
   pro:      { type: 'plan',   minutes: 1000, price: 799900, label: 'Pro — 1,000 Mins', validityDays: 30 },
-  scale:    { type: 'plan',   minutes: 2000, price: 999900, label: 'Scale — 2,000 Mins', validityDays: 30 },
+  scale:    { type: 'plan',   minutes: 1500, price: 999900, label: 'Scale — 1,500 Mins', validityDays: 30 },
   
   // Annual Subscriptions (Base Plans — 2 Months Free!)
   starter_annual:   { type: 'plan', minutes: 2400,  price: 2999000, label: 'Starter Annual (2,400 Mins)', validityDays: 365 },
   growth_annual:     { type: 'plan', minutes: 6000,  price: 4999000, label: 'Growth Annual (6,000 Mins)', validityDays: 365 },
   pro_annual:        { type: 'plan', minutes: 12000, price: 7999000, label: 'Pro Annual (12,000 Mins)', validityDays: 365 },
-  scale_annual:      { type: 'plan', minutes: 24000, price: 9999000, label: 'Scale Annual (24,000 Mins)', validityDays: 365 },
+  scale_annual:      { type: 'plan', minutes: 18000, price: 9999000, label: 'Scale Annual (18,000 Mins)', validityDays: 365 },
 
   // Minute Top-up Packs (One-time)
   topup_50:   { type: 'topup',  minutes: 50,   price: 50000,   label: 'Mini (50 Mins)' },
