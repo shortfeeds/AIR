@@ -17,6 +17,7 @@ const agentRoutes = require('./routes/agent');
 const alertsRoutes = require('./routes/alerts');
 const referralRoutes = require('./routes/referrals');
 const demoRoutes = require('./routes/demo');
+const uploadRoutes = require('./routes/upload');
 const cron = require('node-cron');
 const db = require('./db/pool');
 const pinoHttp = require('pino-http');
@@ -121,6 +122,7 @@ app.use('/api/plivo', plivoRoutes);
 app.use('/api/agent', agentRoutes);
 app.use('/api/demo', demoRoutes);
 app.use('/api/alerts', alertsRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {

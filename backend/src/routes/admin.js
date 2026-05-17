@@ -103,7 +103,7 @@ router.post('/clients/:id/change-plan', validateUUID, validateChangePlan, async 
 
 router.get('/onboarding', async (req, res) => {
   try {
-    const result = await db.query(`SELECT u.id,u.name,u.email,u.created_at,cp.business_name,cp.city,cp.transfer_number,cp.onboarding_status,kb.primary_services,kb.top_faqs,kb.ai_goal FROM users u JOIN client_profiles cp ON cp.user_id=u.id LEFT JOIN knowledge_base kb ON kb.client_id=u.id WHERE cp.onboarding_status='pending' ORDER BY u.created_at`);
+    const result = await db.query(`SELECT u.id,u.name,u.email,u.created_at,cp.business_name,cp.city,cp.website_url,cp.transfer_number,cp.onboarding_status,cp.kyc_document_type,cp.kyc_document_number,cp.kyc_document_url,cp.terms_accepted,kb.primary_services,kb.top_faqs,kb.ai_goal FROM users u JOIN client_profiles cp ON cp.user_id=u.id LEFT JOIN knowledge_base kb ON kb.client_id=u.id WHERE cp.onboarding_status IN ('pending', 'pending_review') ORDER BY u.created_at`);
     res.json({ queue: result.rows });
   } catch(err) { console.error(err); res.status(500).json({ error:'Failed' }); }
 });
@@ -179,6 +179,14 @@ router.patch('/clients/:id', async (req, res) => {
   try {
     await client.query('BEGIN');
     
+    if (email) {
+      const emailCheck = await client.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, req.params.id]);
+      if (emailCheck.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'A user with this email address already exists.' });
+      }
+    }
+
     if (name || email) {
       await client.query(
         'UPDATE users SET name = COALESCE($1, name), email = COALESCE($2, email) WHERE id = $3',
@@ -277,6 +285,18 @@ router.get('/analytics/trends', async (req, res) => {
 // POST /api/admin/clients — Create a new client manually
 router.post('/clients', validateCreateClient, async (req, res) => {
   const { name, email, password, business_name, plan_name, initial_minutes, plivo_number } = req.body;
+
+  // Prevent duplicate email creation
+  try {
+    const existing = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'A user with this email address already exists.' });
+    }
+  } catch (err) {
+    console.error('Email duplicate check error:', err);
+    return res.status(500).json({ error: 'Failed to verify email uniqueness' });
+  }
+
   const client = await db.getClient();
   try {
     const bcrypt = require('bcryptjs');
@@ -448,7 +468,10 @@ router.post('/clients/:id/sync-plivo', async (req, res) => {
     let importedCount = 0;
     for (const call of calls) {
       // 3. Check if lead already exists by timestamp and number
-      const callTime = new Date(call.callTime).toISOString();
+      const rawTime = call.initiationTime || call.endTime || call.callTime;
+      if (!rawTime || !call.fromNumber) continue;
+
+      const callTime = new Date(rawTime).toISOString();
       const existing = await db.query(
         'SELECT id FROM call_leads WHERE client_id = $1 AND caller_number = $2 AND call_timestamp = $3',
         [clientId, call.fromNumber, callTime]
@@ -456,10 +479,11 @@ router.post('/clients/:id/sync-plivo', async (req, res) => {
 
       if (existing.rows.length === 0) {
         // 4. Insert missing lead
+        const durationSecs = parseInt(call.callDuration || call.duration) || 0;
         await db.query(
           `INSERT INTO call_leads (client_id, caller_number, call_duration_seconds, ai_summary, status, call_timestamp)
            VALUES ($1, $2, $3, $4, $5, $6)`,
-          [clientId, call.fromNumber, parseInt(call.duration) || 0, 'Imported from Telephony History', 'new', callTime]
+          [clientId, call.fromNumber, durationSecs, 'Imported from Telephony History', 'new', callTime]
         );
         importedCount++;
       }

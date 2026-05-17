@@ -372,11 +372,11 @@ router.get('/live-calls', auth, async (req, res) => {
 
       return res.json({ 
         calls: calls.map(c => ({
-          call_uuid: c.callUuid,
-          from: c.from,
-          to: c.to,
-          duration: c.duration,
-          direction: c.direction
+          call_uuid: c.callUuid || c.call_uuid,
+          from: c.fromNumber || c.from || c.from_number,
+          to: c.toNumber || c.to || c.to_number,
+          duration: c.callDuration || c.duration || c.call_duration,
+          direction: c.callDirection || c.direction || c.call_direction
         }))
       });
     }

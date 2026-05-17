@@ -162,4 +162,36 @@ router.patch('/crm', auth, validateCRMSettings, async (req, res) => {
   }
 });
 
+// POST /api/settings/onboarding/complete
+router.post('/onboarding/complete', auth, async (req, res) => {
+  try {
+    const { kyc_document_type, kyc_document_number, kyc_document_url, terms_accepted } = req.body;
+
+    if (!terms_accepted) {
+      return res.status(400).json({ error: 'You must accept the terms of service and safe usage guidelines.' });
+    }
+
+    if (!kyc_document_type || !kyc_document_number || !kyc_document_url) {
+      return res.status(400).json({ error: 'Identity verification details (KYC) are required.' });
+    }
+
+    await db.query(
+      `UPDATE client_profiles 
+       SET onboarding_status = 'pending_review',
+           kyc_document_type = $1,
+           kyc_document_number = $2,
+           kyc_document_url = $3,
+           terms_accepted = true,
+           terms_accepted_at = NOW()
+       WHERE user_id = $4`,
+      [kyc_document_type, kyc_document_number, kyc_document_url, req.user.id]
+    );
+
+    res.json({ message: 'Onboarding completed, pending admin review' });
+  } catch (err) {
+    console.error('Complete onboarding error:', err);
+    res.status(500).json({ error: 'Failed to complete onboarding' });
+  }
+});
+
 module.exports = router;

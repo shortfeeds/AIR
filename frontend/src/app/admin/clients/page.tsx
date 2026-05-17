@@ -70,8 +70,12 @@ export default function AdminClients() {
     try {
       await actionFn();
       fetchClients();
-    } catch (e) { console.error(e); }
-    finally { setProcessing(null); }
+    } catch (e: any) { 
+      console.error(e);
+      alert(e.message || "An unexpected error occurred");
+    } finally {
+      setProcessing(null);
+    }
   };
 
   const deleteClient = async () => {

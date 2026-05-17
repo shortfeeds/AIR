@@ -13,6 +13,7 @@ interface UserData {
   plan_name: string;
   available_minutes: number;
   plivo_number: string;
+  onboarding_status: string;
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -37,8 +38,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (isUserError) {
       router.push("/login");
-    } else if (userRes?.user?.role === "admin") {
-      router.push("/admin");
+    } else if (userRes?.user) {
+      const u = userRes.user as UserData;
+      if (u.role === "admin") {
+        router.push("/admin");
+      } else {
+        // Onboarding Gate Interceptor
+        const isPending = u.onboarding_status === 'pending' || u.onboarding_status === 'pending_review' || !u.plivo_number;
+        const currentPath = window.location.pathname;
+        
+        if (isPending && currentPath !== "/dashboard/onboarding") {
+          router.push("/dashboard/onboarding");
+        }
+      }
     }
   }, [isUserError, userRes, router]);
 
@@ -50,6 +62,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <div className="h-screen flex items-center justify-center" style={{ background: "var(--bg-primary)" }}>
         <div className="animate-spin w-8 h-8 border-2 rounded-full" style={{ borderColor: "var(--border-subtle)", borderTopColor: "var(--brand-500)" }} />
+      </div>
+    );
+  }
+
+  const isPending = user.onboarding_status === 'pending' || user.onboarding_status === 'pending_review' || !user.plivo_number;
+
+  if (isPending) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-[#0B0F19]">
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
       </div>
     );
   }

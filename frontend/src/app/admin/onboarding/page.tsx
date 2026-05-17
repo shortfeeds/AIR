@@ -109,7 +109,11 @@ export default function AdminOnboarding() {
                   <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>{client.name}</h3>
                   <p className="text-xs" style={{ color: "var(--text-muted)" }}>{client.email} · Signed up {new Date(client.created_at).toLocaleDateString("en-IN")}</p>
                 </div>
-                <span className="badge badge-warning">Pending</span>
+                {client.onboarding_status === 'pending_review' ? (
+                  <span className="badge" style={{ background: "rgba(16, 185, 129, 0.1)", color: "var(--success)" }}>Form Submitted</span>
+                ) : (
+                  <span className="badge badge-warning">Awaiting Form</span>
+                )}
               </div>
 
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 text-sm">
@@ -118,8 +122,8 @@ export default function AdminOnboarding() {
                   <p style={{ color: "var(--text-primary)" }}>{client.business_name || "—"}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>City</p>
-                  <p style={{ color: "var(--text-primary)" }}>{client.city || "—"}</p>
+                  <p className="text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>Website</p>
+                  <p style={{ color: "var(--text-primary)" }}>{client.website_url ? <a href={client.website_url} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">{client.website_url}</a> : "—"}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>Transfer Number</p>
@@ -135,6 +139,49 @@ export default function AdminOnboarding() {
                 <div className="mb-4">
                   <p className="text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>Services</p>
                   <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{client.primary_services}</p>
+                </div>
+              )}
+
+              {client.top_faqs && Array.isArray(client.top_faqs) && client.top_faqs.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>FAQs</p>
+                  <div className="space-y-2 bg-white/5 p-3 rounded-lg border border-white/5">
+                    {client.top_faqs.map((faq: any, i: number) => (
+                      <div key={i} className="text-xs">
+                        <span className="font-bold text-white/70">Q: {faq.q}</span>
+                        <p className="text-white/50 ml-4 mt-0.5">A: {faq.a}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {client.kyc_document_type && (
+                <div className="mb-4 bg-white/5 p-4 rounded-xl border border-white/5 space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400">KYC & Compliance Verification</h4>
+                  <div className="grid sm:grid-cols-3 gap-4 text-xs">
+                    <div>
+                      <p className="font-semibold mb-1" style={{ color: "var(--text-muted)" }}>Document Type</p>
+                      <p className="uppercase text-white">{client.kyc_document_type}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold mb-1" style={{ color: "var(--text-muted)" }}>Document Number</p>
+                      <p className="text-white font-mono">{client.kyc_document_number}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold mb-1" style={{ color: "var(--text-muted)" }}>Document File</p>
+                      {client.kyc_document_url ? (
+                        <a href={client.kyc_document_url} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline font-bold">View Uploaded ID</a>
+                      ) : (
+                        <p className="text-rose-400">No file uploaded</p>
+                      )}
+                    </div>
+                  </div>
+                  {client.terms_accepted && (
+                    <p className="text-[10px] text-emerald-400 flex items-center gap-1.5 font-bold pt-2 border-t border-white/5">
+                      ✓ Terms of Service accepted and Safe Usage pledge signed by client.
+                    </p>
+                  )}
                 </div>
               )}
 
