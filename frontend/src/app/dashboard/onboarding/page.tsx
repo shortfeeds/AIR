@@ -215,7 +215,7 @@ export default function OnboardingPage() {
                     <Building className="w-6 h-6 text-indigo-400" />
                   </div>
                   <h2 className="text-3xl font-black text-white tracking-tight mb-2">Welcome to Trinity Pixels</h2>
-                  <p className="text-white/50 text-sm font-medium leading-relaxed">Let's get your AI Receptionist set up. First, tell us a bit about your business so we can tailor the AI to your brand.</p>
+                  <p className="text-white/50 text-sm font-medium leading-relaxed">Let&apos;s get your AI Receptionist set up. First, tell us a bit about your business so we can tailor the AI to your brand.</p>
                 </div>
 
                 <div className="space-y-5">
