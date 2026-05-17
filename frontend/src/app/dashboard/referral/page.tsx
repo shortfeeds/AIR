@@ -130,7 +130,7 @@ export default function ReferralPage() {
           <div className="space-y-4">
             <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-black">2</div>
             <p className="font-bold text-white">They Sign Up</p>
-            <p className="text-sm opacity-50">They get access to the world's most advanced AI Voice Receptionist.</p>
+            <p className="text-sm opacity-50">They get access to the world&apos;s most advanced AI Voice Receptionist.</p>
           </div>
           <div className="space-y-4">
             <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-black">3</div>

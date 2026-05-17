@@ -47,15 +47,12 @@ async function initDatabase() {
       for (const file of files) {
         console.log(`Running migration: ${file}`);
         const migrationSQL = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-        const mStatements = migrationSQL.split(';').filter(s => s.trim().length > 0);
-        for (const statement of mStatements) {
-          try {
-            await db.query(statement);
-          } catch (e) {
-            // Ignore "already exists" errors for migrations
-            if (e.code !== '42P07' && e.code !== '42P01' && e.code !== '42710' && !e.message.includes('already exists')) {
-              console.log(`⚠️ Error in migration ${file}:`, e.message);
-            }
+        try {
+          await db.query(migrationSQL);
+        } catch (e) {
+          // Ignore duplicate relation/object errors
+          if (e.code !== '42P07' && e.code !== '42710' && !e.message.includes('already exists')) {
+            console.warn(`⚠️ Error in migration ${file}:`, e.message);
           }
         }
       }

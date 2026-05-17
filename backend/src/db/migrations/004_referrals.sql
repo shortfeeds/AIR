@@ -43,6 +43,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_assign_referral_code ON users;
 CREATE TRIGGER trigger_assign_referral_code
 BEFORE INSERT ON users
 FOR EACH ROW

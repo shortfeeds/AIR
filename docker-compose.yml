@@ -38,7 +38,9 @@ services:
       PLIVO_AUTH_ID: ${PLIVO_AUTH_ID}
       PLIVO_AUTH_TOKEN: ${PLIVO_AUTH_TOKEN}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    command: sh -c "node src/db/init.js && node src/index.js"
     ports:
       - "4000:4000"
     networks:

@@ -1,7 +1,10 @@
 "use client";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useSocket } from "@/lib/useSocket";
+import { toast } from "react-hot-toast";
+import Link from "next/link";
 import { 
   Phone, CheckCircle, ArrowRight, Copy, Check, Volume2, Clock, 
   Users, Activity, PhoneCall, PhoneIncoming, Download, Filter,
@@ -37,9 +40,24 @@ export default function DashboardOverview() {
   const [filter, setFilter] = useState("all");
   const [isExporting, setIsExporting] = useState(false);
 
+  const queryClient = useQueryClient();
+
   const { data: userRes } = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: () => api("/auth/me")
+  });
+
+  const user = userRes?.user;
+
+  // Real-time: Refresh leads & stats when a new lead is captured via Plivo webhook
+  useSocket(user?.id, (event, data) => {
+    if (event === 'new_lead') {
+      toast.success(`📞 New Lead Captured! Caller: ${data.caller_number}`, {
+        duration: 6000,
+        icon: '🔔',
+      });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    }
   });
 
   const { data: leadsData, isLoading: isLoadingLeads, refetch } = useQuery({
@@ -52,7 +70,6 @@ export default function DashboardOverview() {
     queryFn: () => api("/leads/stats")
   });
 
-  const user = userRes?.user;
   const leads = leadsData?.leads || [];
   const stats = statsData?.stats;
   const loading = isLoadingLeads || isLoadingStats;
@@ -71,7 +88,7 @@ export default function DashboardOverview() {
   const exportLeads = () => {
     setIsExporting(true);
     const headers = ["Date", "Caller", "Duration", "Sentiment", "Score", "Summary"];
-    const rows = leads.map(l => [
+    const rows = leads.map((l: Lead) => [
       new Date(l.call_timestamp).toLocaleDateString(),
       l.caller_number,
       `${l.call_duration_seconds}s`,
@@ -81,7 +98,7 @@ export default function DashboardOverview() {
     ]);
     
     const csvContent = "data:text/csv;charset=utf-8," + 
-      [headers, ...rows].map(e => e.join(",")).join("\n");
+      [headers, ...rows].map((e: any[]) => e.join(",")).join("\n");
     
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -92,7 +109,7 @@ export default function DashboardOverview() {
     setIsExporting(false);
   };
 
-  const filteredLeads = leads.filter(l => {
+  const filteredLeads = leads.filter((l: Lead) => {
     if (filter === "high_intent") return (l.lead_score || 0) >= 70;
     if (filter === "needs_followup") return l.status === "new";
     return true;
@@ -205,9 +222,11 @@ export default function DashboardOverview() {
               <p className="text-sm text-white/50 font-medium">Help a friend never miss a call. When they sign up, you both get free credits.</p>
             </div>
           </div>
-          <button className="btn-primary !px-10 whitespace-nowrap">
-            Get Referral Link
-          </button>
+          <Link href="/dashboard/referral" passHref>
+            <button className="btn-primary !px-10 whitespace-nowrap">
+              Get Referral Link
+            </button>
+          </Link>
         </div>
       </div>
 
@@ -251,7 +270,7 @@ export default function DashboardOverview() {
               <p className="text-sm font-bold text-white">No intelligence records found</p>
               <p className="text-xs mt-2 max-w-sm opacity-40 leading-relaxed">When your AI assistant handles calls, transcripts and intent scoring will appear here instantly.</p>
             </div>
-          ) : filteredLeads.map((lead) => (
+          ) : filteredLeads.map((lead: Lead) => (
             <div key={lead.id} className={`transition-all ${expandedId === lead.id ? "bg-white/[0.03] shadow-inner" : "hover:bg-white/[0.01]"}`}>
               <div className="p-4 sm:p-6 cursor-pointer flex items-center justify-between" onClick={() => setExpandedId(expandedId === lead.id ? null : lead.id)}>
                   <div className="flex items-center gap-6 min-w-[240px]">

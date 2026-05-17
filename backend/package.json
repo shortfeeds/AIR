@@ -27,7 +27,7 @@
     "plivo": "^4.60.0",
     "razorpay": "^2.9.5",
     "resend": "^6.12.3",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

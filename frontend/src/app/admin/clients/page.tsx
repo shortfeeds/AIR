@@ -97,7 +97,9 @@ export default function AdminClients() {
       setEditModal(null);
     });
   };
-
+  const filteredClients = clients.filter(c =>
+    c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.business_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
