@@ -64,7 +64,7 @@ CREATE INDEX IF NOT EXISTS idx_phone_numbers_plivo ON phone_numbers(plivo_number
 CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   client_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  plan_name VARCHAR(50) NOT NULL DEFAULT 'silver' CHECK (plan_name IN ('free_trial', 'trial', 'silver', 'gold', 'diamond', 'platinum', 'enterprise')),
+  plan_name VARCHAR(50) NOT NULL DEFAULT 'starter' CHECK (plan_name IN ('free_trial', 'trial', 'starter', 'growth', 'pro', 'scale', 'enterprise')),
   available_minutes INTEGER NOT NULL DEFAULT 0,
   total_minutes_purchased INTEGER NOT NULL DEFAULT 0,
   billing_cycle_start DATE DEFAULT CURRENT_DATE,
@@ -151,9 +151,9 @@ CREATE TABLE IF NOT EXISTS global_settings (
 -- Seed default plans
 INSERT INTO global_settings (key, value) VALUES 
 ('plans', '{
-  "silver": {"minutes": 200, "price": 299900, "label": "Silver"},
-  "gold": {"minutes": 500, "price": 499900, "label": "Gold"},
-  "diamond": {"minutes": 1000, "price": 799900, "label": "Diamond"},
-  "platinum": {"minutes": 2000, "price": 999900, "label": "Platinum"},
+  "starter": {"minutes": 200, "price": 299900, "label": "Starter"},
+  "growth": {"minutes": 500, "price": 499900, "label": "Growth"},
+  "pro": {"minutes": 1000, "price": 799900, "label": "Pro"},
+  "scale": {"minutes": 2000, "price": 999900, "label": "Scale"},
   "trial": {"minutes": 15, "price": 59900, "label": "Trial (7 Days)"}
 }') ON CONFLICT (key) DO NOTHING;

@@ -9,7 +9,7 @@ const router = express.Router();
 router.get('/', auth, async (req, res) => {
   try {
     const profileResult = await db.query(
-      'SELECT transfer_number, transfer_mode, operating_hours, avg_lead_value, logo_url, n8n_webhook_url FROM client_profiles WHERE user_id = $1',
+      'SELECT business_name, transfer_number, transfer_mode, operating_hours, avg_lead_value, logo_url, n8n_webhook_url, website_url, gstin, crm_type, crm_webhook_url FROM client_profiles WHERE user_id = $1',
       [req.user.id]
     );
     const kbResult = await db.query(
@@ -29,10 +29,10 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// PATCH /api/settings/ai — Update AI preferences (Language, Booking Link, KB)
+// PATCH /api/settings/ai — Update AI preferences (Language, Booking Link, KB, Website URL)
 router.patch('/ai', auth, validateAISettings, async (req, res) => {
   try {
-    const { language, booking_link, primary_services, top_faqs, ai_goal } = req.body;
+    const { language, booking_link, primary_services, top_faqs, ai_goal, website_url } = req.body;
 
     await db.query(
       `UPDATE knowledge_base
@@ -44,6 +44,15 @@ router.patch('/ai', auth, validateAISettings, async (req, res) => {
        WHERE client_id = $6`,
       [language, booking_link, primary_services, JSON.stringify(top_faqs), ai_goal, req.user.id]
     );
+
+    if (website_url !== undefined) {
+      await db.query(
+        `UPDATE client_profiles
+         SET website_url = $1
+         WHERE user_id = $2`,
+        [website_url, req.user.id]
+      );
+    }
 
     res.json({ message: 'AI preferences and knowledge base updated' });
   } catch (err) {
@@ -113,16 +122,17 @@ router.post('/knowledge-update', auth, async (req, res) => {
 // PATCH /api/settings/brand — Update Brand & Notifications
 router.patch('/brand', auth, validateBrandSettings, async (req, res) => {
   try {
-    const { avg_lead_value, logo_url, n8n_webhook_url, gstin } = req.body;
+    const { business_name, avg_lead_value, logo_url, n8n_webhook_url, gstin } = req.body;
 
     await db.query(
       `UPDATE client_profiles
-       SET avg_lead_value = COALESCE($1, avg_lead_value),
-           logo_url = COALESCE($2, logo_url),
-           n8n_webhook_url = COALESCE($3, n8n_webhook_url),
-           gstin = COALESCE($4, gstin)
-       WHERE user_id = $5`,
-      [avg_lead_value, logo_url, n8n_webhook_url, gstin, req.user.id]
+       SET business_name = COALESCE($1, business_name),
+           avg_lead_value = COALESCE($2, avg_lead_value),
+           logo_url = COALESCE($3, logo_url),
+           n8n_webhook_url = COALESCE($4, n8n_webhook_url),
+           gstin = COALESCE($5, gstin)
+       WHERE user_id = $6`,
+      [business_name, avg_lead_value, logo_url, n8n_webhook_url, gstin, req.user.id]
     );
 
     res.json({ message: 'Brand and notification settings updated' });

@@ -122,7 +122,7 @@ You are a helpful AI Assistant. Our team is currently experiencing technical dif
       prompt: defaultPrompt,
       language: 'en-IN',
       voice_id: 'Polly.Aditi',
-      plan: 'silver',
+      plan: 'starter',
       used_prompt: 'A',
       is_fallback: true
     });

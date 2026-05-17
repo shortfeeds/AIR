@@ -49,7 +49,7 @@ router.post('/signup', validateSignup, async (req, res) => {
     );
     await db.query(
       `INSERT INTO subscriptions (client_id, plan_name, available_minutes, total_minutes_purchased)
-       VALUES ($1, 'silver', 0, 0)`,
+       VALUES ($1, 'starter', 0, 0)`,
       [user.id]
     );
     await db.query(
@@ -116,7 +116,7 @@ router.post('/login', validateLogin, async (req, res) => {
 router.get('/me', auth, async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT u.id, u.name, u.email, u.role, u.created_at,
+      `SELECT u.id, u.name, u.email, u.role, u.created_at, u.referral_code,
               cp.business_name, cp.onboarding_status,
               s.plan_name, s.available_minutes, s.total_minutes_purchased, s.status as sub_status,
               pn.plivo_number

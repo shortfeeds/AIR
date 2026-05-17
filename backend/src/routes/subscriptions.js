@@ -14,7 +14,13 @@ router.get('/', auth, async (req, res) => {
                   THEN (s.available_minutes::DECIMAL / s.total_minutes_purchased * 100)
                   ELSE 0
                 END, 1
-              ) as usage_percentage
+              ) as usage_percentage,
+              COALESCE(
+                (SELECT SUM(remaining_amount_inr) 
+                 FROM wallet_credits 
+                 WHERE client_id = s.client_id AND expires_at > NOW()), 
+                0
+              )::FLOAT as active_wallet_balance
        FROM subscriptions s
        WHERE s.client_id = $1`,
       [req.user.id]

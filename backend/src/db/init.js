@@ -29,11 +29,17 @@ async function initDatabase() {
       await db.query('ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS prompt_b TEXT');
       await db.query('ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS ab_split_active BOOLEAN DEFAULT false');
       
-      // Update subscriptions plan_name check
+      // Update subscriptions plan_name check supporting rebranded and annual plans
       await db.query('ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS subscriptions_plan_name_check');
-      await db.query("ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_plan_name_check CHECK (plan_name IN ('free_trial', 'trial', 'silver', 'gold', 'diamond', 'platinum', 'enterprise'))");
+      await db.query("ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_plan_name_check CHECK (plan_name IN ('free_trial', 'trial', 'starter', 'growth', 'pro', 'scale', 'starter_annual', 'growth_annual', 'pro_annual', 'scale_annual', 'enterprise'))");
       
       await db.query('ALTER TABLE call_leads ADD COLUMN IF NOT EXISTS used_prompt CHAR(1) DEFAULT \'A\'');
+      
+      // Add caller name, caller query and appointment details to call_leads
+      await db.query('ALTER TABLE call_leads ADD COLUMN IF NOT EXISTS caller_name VARCHAR(255)');
+      await db.query('ALTER TABLE call_leads ADD COLUMN IF NOT EXISTS caller_query TEXT');
+      await db.query('ALTER TABLE call_leads ADD COLUMN IF NOT EXISTS appointment_date DATE');
+      await db.query('ALTER TABLE call_leads ADD COLUMN IF NOT EXISTS appointment_time TIME');
 
       // Update client_profiles with new SaaS onboarding and webhook columns
       await db.query('ALTER TABLE client_profiles ADD COLUMN IF NOT EXISTS avg_lead_value INTEGER DEFAULT 1000');

@@ -34,6 +34,7 @@ const formatPaginated = (rows, total, page, limit) => {
   
   return {
     data: rows,
+    leads: rows,
     pagination: {
       total,
       page,

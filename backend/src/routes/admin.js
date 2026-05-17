@@ -304,7 +304,7 @@ router.post('/clients', validateCreateClient, async (req, res) => {
     // Assign initial plan with provided minutes
     await client.query(
       'INSERT INTO subscriptions (client_id, plan_name, available_minutes, total_minutes_purchased, status) VALUES ($1, $2, $3, $3, $4)',
-      [userId, plan_name || 'silver', initial_minutes || 0, 'active']
+      [userId, plan_name || 'starter', initial_minutes || 0, 'active']
     );
 
     // Initial system prompt setup

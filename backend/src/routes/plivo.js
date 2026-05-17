@@ -26,7 +26,7 @@ router.get('/verify', async (req, res) => {
       `SELECT pn.client_id, kb.language, kb.voice_id 
        FROM phone_numbers pn 
        LEFT JOIN knowledge_base kb ON kb.client_id = pn.client_id
-       WHERE pn.plivo_number = $1 AND pn.is_active = true`,
+       WHERE REPLACE(pn.plivo_number, '+', '') = REPLACE($1, '+', '') AND pn.is_active = true`,
       [toNumber]
     );
     if (pn.rows.length === 0) {
@@ -94,14 +94,26 @@ router.post('/post-call', async (req, res) => {
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
-    const { plivo_number, caller_number, duration_seconds, transcript, ai_summary, action_taken, recording_url } = req.body;
+    const { 
+      plivo_number, 
+      caller_number, 
+      duration_seconds, 
+      transcript, 
+      ai_summary, 
+      action_taken, 
+      recording_url,
+      caller_name,
+      caller_query,
+      appointment_date,
+      appointment_time
+    } = req.body;
 
     // Find client by Plivo number
     const pn = await client.query(
       `SELECT pn.client_id, cp.n8n_webhook_url, cp.business_name, cp.crm_type, cp.crm_webhook_url 
        FROM phone_numbers pn 
        JOIN client_profiles cp ON cp.user_id = pn.client_id
-       WHERE pn.plivo_number = $1`,
+       WHERE REPLACE(pn.plivo_number, '+', '') = REPLACE($1, '+', '')`,
       [plivo_number]
     );
     if (pn.rows.length === 0) {
@@ -133,9 +145,17 @@ router.post('/post-call', async (req, res) => {
 
     // Insert call lead
     const leadInsert = await client.query(
-      `INSERT INTO call_leads (client_id, caller_number, call_duration_seconds, ai_summary, transcript_raw, action_taken, recording_url, lead_score, sentiment)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [clientId, caller_number, duration_seconds, ai_summary || '', transcript || '', action_taken || '', recording_url || '', leadScore, sentiment]
+      `INSERT INTO call_leads (
+        client_id, caller_number, call_duration_seconds, ai_summary, 
+        transcript_raw, action_taken, recording_url, lead_score, sentiment,
+        caller_name, caller_query, appointment_date, appointment_time
+      )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+      [
+        clientId, caller_number, duration_seconds, ai_summary || '', 
+        transcript || '', action_taken || '', recording_url || '', leadScore, sentiment,
+        caller_name || null, caller_query || null, appointment_date || null, appointment_time || null
+      ]
     );
     const callLeadId = leadInsert.rows[0].id;
     
@@ -148,7 +168,11 @@ router.post('/post-call', async (req, res) => {
         duration_seconds,
         ai_summary,
         lead_score: leadScore,
-        sentiment
+        sentiment,
+        caller_name: caller_name || null,
+        caller_query: caller_query || null,
+        appointment_date: appointment_date || null,
+        appointment_time: appointment_time || null
       });
     }
 
@@ -217,7 +241,11 @@ router.post('/post-call', async (req, res) => {
           action: action_taken,
           recording: recording_url,
           lead_score: leadScore,
-          sentiment: sentiment
+          sentiment: sentiment,
+          caller_name: caller_name || null,
+          caller_query: caller_query || null,
+          appointment_date: appointment_date || null,
+          appointment_time: appointment_time || null
         })
       }).catch(e => console.error('n8n business notification failed:', e.message));
 
@@ -230,7 +258,10 @@ router.post('/post-call', async (req, res) => {
           business_name: businessName,
           caller: caller_number,
           summary: ai_summary,
-          action: action_taken
+          action: action_taken,
+          caller_name: caller_name || null,
+          appointment_date: appointment_date || null,
+          appointment_time: appointment_time || null
         })
       }).catch(e => console.error('n8n caller follow-up failed:', e.message));
     }
@@ -250,6 +281,10 @@ router.post('/post-call', async (req, res) => {
           duration: duration_seconds,
           action: action_taken,
           recording: recording_url,
+          caller_name: caller_name || null,
+          caller_query: caller_query || null,
+          appointment_date: appointment_date || null,
+          appointment_time: appointment_time || null,
           timestamp: new Date().toISOString()
         })
       }).catch(e => console.error('CRM sync failed:', e.message));
@@ -276,7 +311,7 @@ router.post('/fallback', async (req, res) => {
     const biz = await db.query(
       `SELECT cp.business_name, cp.n8n_webhook_url FROM phone_numbers pn 
        JOIN client_profiles cp ON cp.user_id = pn.client_id 
-       WHERE pn.plivo_number = $1`, [To]
+       WHERE REPLACE(pn.plivo_number, '+', '') = REPLACE($1, '+', '')`, [To]
     );
 
     const businessName = biz.rows[0]?.business_name || "us";

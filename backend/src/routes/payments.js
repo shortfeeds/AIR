@@ -10,16 +10,17 @@ const router = express.Router();
 // Plan, Top-up, and Add-on configuration
 const PLANS = {
   // Monthly Subscriptions (Base Plans)
-  trial:    { type: 'plan',   minutes: 15,   price: 59900,  label: 'Trial — 15 mins', validityDays: 7 },
-  silver:   { type: 'plan',   minutes: 200,  price: 299900, label: 'Silver — 200 mins', validityDays: 30 },
-  gold:     { type: 'plan',   minutes: 500,  price: 499900, label: 'Gold — 500 mins', validityDays: 30 },
-  diamond:  { type: 'plan',   minutes: 1000, price: 799900, label: 'Diamond — 1,000 mins', validityDays: 30 },
-  platinum: { type: 'plan',   minutes: 2000, price: 999900, label: 'Platinum — 2,000 mins', validityDays: 30 },
+  trial:    { type: 'plan',   minutes: 15,   price: 59900,  label: 'Trial — 15 Mins', validityDays: 7 },
+  starter:  { type: 'plan',   minutes: 200,  price: 299900, label: 'Starter — 200 Mins', validityDays: 30 },
+  growth:   { type: 'plan',   minutes: 500,  price: 499900, label: 'Growth — 500 Mins', validityDays: 30 },
+  pro:      { type: 'plan',   minutes: 1000, price: 799900, label: 'Pro — 1,000 Mins', validityDays: 30 },
+  scale:    { type: 'plan',   minutes: 2000, price: 999900, label: 'Scale — 2,000 Mins', validityDays: 30 },
   
-  // Annual Subscriptions (Base Plans — 20% Discount)
-  silver_annual:   { type: 'plan', minutes: 2400,  price: 2879000, label: 'Silver Annual (2400 mins)', validityDays: 365 },
-  gold_annual:     { type: 'plan', minutes: 6000,  price: 4799000, label: 'Gold Annual (6000 mins)', validityDays: 365 },
-  diamond_annual:  { type: 'plan', minutes: 12000, price: 7679000, label: 'Diamond Annual (12000 mins)', validityDays: 365 },
+  // Annual Subscriptions (Base Plans — 2 Months Free!)
+  starter_annual:   { type: 'plan', minutes: 2400,  price: 2999000, label: 'Starter Annual (2,400 Mins)', validityDays: 365 },
+  growth_annual:     { type: 'plan', minutes: 6000,  price: 4999000, label: 'Growth Annual (6,000 Mins)', validityDays: 365 },
+  pro_annual:        { type: 'plan', minutes: 12000, price: 7999000, label: 'Pro Annual (12,000 Mins)', validityDays: 365 },
+  scale_annual:      { type: 'plan', minutes: 24000, price: 9999000, label: 'Scale Annual (24,000 Mins)', validityDays: 365 },
 
   // Minute Top-up Packs (One-time)
   topup_50:   { type: 'topup',  minutes: 50,   price: 50000,   label: 'Mini (50 Mins)' },
@@ -112,6 +113,37 @@ router.post('/create-order', auth, async (req, res) => {
       }
     }
 
+    // Fetch active wallet balance
+    const balanceRes = await db.query(
+      "SELECT COALESCE(SUM(remaining_amount_inr), 0) as balance FROM wallet_credits WHERE client_id = $1 AND expires_at > NOW()",
+      [req.user.id]
+    );
+    const walletBalance = parseFloat(balanceRes.rows[0].balance);
+    const originalPriceInInr = planConfig.price / 100;
+    
+    const creditsUsed = Math.min(walletBalance, originalPriceInInr);
+    const finalAmountInr = originalPriceInInr - creditsUsed;
+    const finalPriceInPaise = Math.round(finalAmountInr * 100);
+
+    // If fully covered by wallet credits, bypass Razorpay!
+    if (finalPriceInPaise === 0) {
+      const mockOrderId = `free_order_${Date.now()}`;
+      await db.query(
+        `INSERT INTO transactions (client_id, razorpay_order_id, amount_inr, minutes_purchased, plan_name, status, credits_used_inr)
+         VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
+        [req.user.id, mockOrderId, 0, planConfig.minutes, plan, creditsUsed]
+      );
+
+      return res.json({
+        order_id: mockOrderId,
+        amount: 0,
+        isFullyCredited: true,
+        currency: 'INR',
+        plan: planConfig.label,
+        key_id: null,
+      });
+    }
+
     // Lazy-load Razorpay (only when credentials exist)
     let order;
     if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_ID !== 'rzp_test_xxxxxxxxxxxx') {
@@ -122,30 +154,30 @@ router.post('/create-order', auth, async (req, res) => {
       });
 
       order = await razorpay.orders.create({
-        amount: planConfig.price,
+        amount: finalPriceInPaise,
         currency: 'INR',
         receipt: `tp_${req.user.id}_${Date.now()}`,
-        notes: { user_id: req.user.id, plan, isUpgrade: isUpgrade ? 'true' : 'false' },
+        notes: { user_id: req.user.id, plan, isUpgrade: isUpgrade ? 'true' : 'false', credits_used: creditsUsed.toString() },
       });
     } else {
       // Mock order for development
       order = {
         id: `order_mock_${Date.now()}`,
-        amount: planConfig.price,
+        amount: finalPriceInPaise,
         currency: 'INR',
       };
     }
 
-    // Record pending transaction
+    // Record pending transaction with credits_used_inr
     await db.query(
-      `INSERT INTO transactions (client_id, razorpay_order_id, amount_inr, minutes_purchased, plan_name, status)
-       VALUES ($1, $2, $3, $4, $5, 'pending')`,
-      [req.user.id, order.id, planConfig.price / 100, planConfig.minutes, plan]
+      `INSERT INTO transactions (client_id, razorpay_order_id, amount_inr, minutes_purchased, plan_name, status, credits_used_inr)
+       VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
+      [req.user.id, order.id, finalAmountInr, planConfig.minutes, plan, creditsUsed]
     );
 
     res.json({
       order_id: order.id,
-      amount: planConfig.price,
+      amount: finalPriceInPaise,
       currency: 'INR',
       plan: planConfig.label,
       key_id: process.env.RAZORPAY_KEY_ID,
@@ -153,6 +185,151 @@ router.post('/create-order', auth, async (req, res) => {
   } catch (err) {
     console.error('Create order error:', err);
     res.status(500).json({ error: 'Failed to create payment order' });
+  }
+});
+
+// POST /api/payments/complete-free-order — Complete ₹0 orders using wallet credits
+router.post('/complete-free-order', auth, async (req, res) => {
+  try {
+    const { plan, orderId } = req.body;
+
+    // Find the pending transaction
+    const txResult = await db.query(
+      'SELECT * FROM transactions WHERE client_id = $1 AND razorpay_order_id = $2 AND status = $3',
+      [req.user.id, orderId, 'pending']
+    );
+
+    if (txResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found or already processed' });
+    }
+
+    const tx = txResult.rows[0];
+    const creditsUsed = parseFloat(tx.credits_used_inr || 0);
+
+    // Atomically activate subscription and consume wallet credits
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      // Update transaction status
+      await client.query(
+        `UPDATE transactions SET status = 'captured', razorpay_payment_id = $1 WHERE id = $2`,
+        [`wallet_funded_${Date.now()}`, tx.id]
+      );
+
+      // Consume the wallet credits using the FIFO manager
+      if (creditsUsed > 0) {
+        await consumeWalletCredits(client, tx.client_id, creditsUsed, tx.id);
+      }
+
+      // Update subscription
+      const planConfig = PLANS[tx.plan_name];
+      const isTopup = tx.plan_name.startsWith('topup');
+      
+      let updatePlanSql;
+      let params;
+
+      if (isTopup) {
+        updatePlanSql = `
+          UPDATE subscriptions 
+          SET available_minutes = available_minutes + $1, 
+              total_minutes_purchased = total_minutes_purchased + $1, 
+              status = 'active' 
+          WHERE client_id = $2`;
+        params = [tx.minutes_purchased, tx.client_id];
+      } else {
+        const validity = planConfig.validityDays || 30;
+        updatePlanSql = `
+          UPDATE subscriptions 
+          SET available_minutes = available_minutes + $1, 
+              total_minutes_purchased = total_minutes_purchased + $1, 
+              plan_name = $2, 
+              status = 'active',
+              billing_cycle_start = CURRENT_DATE,
+              billing_cycle_end = CURRENT_DATE + (INTERVAL '1 day' * $3)
+          WHERE client_id = $4`;
+        params = [tx.minutes_purchased, tx.plan_name, validity, tx.client_id];
+      }
+
+      await client.query(updatePlanSql, params);
+
+      // --- Referral Reward Logic ---
+      const userRes = await client.query('SELECT referred_by FROM users WHERE id = $1', [tx.client_id]);
+      const referredBy = userRes.rows[0]?.referred_by;
+
+      if (referredBy) {
+        // Check if this is the first payment
+        const paymentCount = await client.query("SELECT COUNT(*) FROM transactions WHERE client_id = $1 AND status = 'captured'", [tx.client_id]);
+        if (parseInt(paymentCount.rows[0].count) === 1) {
+          const rewardRes = await client.query(
+            'INSERT INTO referral_rewards (referrer_id, referee_id, reward_amount_inr, is_claimed) VALUES ($1, $2, 500.00, true) RETURNING id',
+            [referredBy, tx.client_id]
+          );
+          const rewardId = rewardRes.rows[0].id;
+
+          await client.query(
+            `INSERT INTO wallet_credits (client_id, amount_inr, remaining_amount_inr, source_type, referral_reward_id, expires_at)
+             VALUES ($1, 500.00, 500.00, 'referral_bonus', $2, NOW() + INTERVAL '1 year')`,
+            [referredBy, rewardId]
+          );
+          await client.query(
+            `INSERT INTO wallet_ledger (client_id, amount_inr, type, description)
+             VALUES ($1, 500.00, 'credit', 'Referral reward for inviting a business partner')`,
+            [referredBy]
+          );
+
+          await client.query(
+            `INSERT INTO wallet_credits (client_id, amount_inr, remaining_amount_inr, source_type, referral_reward_id, expires_at)
+             VALUES ($1, 500.00, 500.00, 'referral_bonus', $2, NOW() + INTERVAL '1 year')`,
+            [tx.client_id, rewardId]
+          );
+          await client.query(
+            `INSERT INTO wallet_ledger (client_id, amount_inr, type, description)
+             VALUES ($1, 500.00, 'credit', 'Referral signup onboarding reward')`,
+            [tx.client_id]
+          );
+        }
+      }
+
+      // --- Zero-Touch Provisioning ---
+      if (!isTopup && process.env.PLIVO_AUTH_ID && process.env.PLIVO_AUTH_TOKEN) {
+        try {
+          const hasNumber = await client.query('SELECT id FROM phone_numbers WHERE client_id = $1', [tx.client_id]);
+          if (hasNumber.rows.length === 0) {
+            const plivo = require('plivo');
+            const plivoClient = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
+            const numbers = await plivoClient.numbers.search('IN', { limit: 1 });
+            if (numbers.length > 0) {
+              const numberToBuy = numbers[0].number;
+              await plivoClient.numbers.buy(numberToBuy, {
+                app_id: process.env.PLIVO_APP_ID || ''
+              });
+              await client.query(
+                'INSERT INTO phone_numbers (client_id, plivo_number, is_active) VALUES ($1, $2, true)',
+                [tx.client_id, numberToBuy]
+              );
+              await client.query(
+                "UPDATE client_profiles SET onboarding_status = 'active' WHERE user_id = $1",
+                [tx.client_id]
+              );
+            }
+          }
+        } catch (provisionErr) {
+          console.error('Zero-touch provisioning failed:', provisionErr.message);
+        }
+      }
+
+      await client.query('COMMIT');
+      res.json({ success: true, message: 'Plan activated successfully using wallet credits.' });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Free order completion failed:', err);
+    res.status(500).json({ error: 'Failed to process wallet-funded order.' });
   }
 });
 
@@ -214,6 +391,12 @@ router.post('/webhook', async (req, res) => {
           [paymentId, tx.id]
         );
 
+        // Consume wallet credits if they were used
+        const creditsUsed = parseFloat(tx.credits_used_inr || 0);
+        if (creditsUsed > 0) {
+          await consumeWalletCredits(client, tx.client_id, creditsUsed, tx.id);
+        }
+
         // Add minutes to subscription
         // Only update plan_name if the item purchased was a base plan, not a top-up
         const planConfig = PLANS[tx.plan_name];
@@ -252,25 +435,40 @@ router.post('/webhook', async (req, res) => {
 
         if (referredBy) {
           // Check if this is the first payment (to avoid multi-claiming)
-          const paymentCount = await client.query('SELECT COUNT(*) FROM transactions WHERE client_id = $1 AND status = \'captured\'', [tx.client_id]);
+          const paymentCount = await client.query("SELECT COUNT(*) FROM transactions WHERE client_id = $1 AND status = 'captured'", [tx.client_id]);
           if (parseInt(paymentCount.rows[0].count) === 1) {
-            const rewardMinutes = 50;
-            // 1. Grant 50 mins to the referrer
-            await client.query(
-              'UPDATE subscriptions SET available_minutes = available_minutes + $1, total_minutes_purchased = total_minutes_purchased + $1 WHERE client_id = $2',
-              [rewardMinutes, referredBy]
+            // 1. Record the referral reward in referral_rewards table
+            const rewardRes = await client.query(
+              'INSERT INTO referral_rewards (referrer_id, referee_id, reward_amount_inr, is_claimed) VALUES ($1, $2, 500.00, true) RETURNING id',
+              [referredBy, tx.client_id]
             );
-            // 2. Grant 50 mins to the referee (the one who just paid)
+            const rewardId = rewardRes.rows[0].id;
+
+            // 2. Grant ₹500 credits to the referrer
             await client.query(
-              'UPDATE subscriptions SET available_minutes = available_minutes + $1, total_minutes_purchased = total_minutes_purchased + $1 WHERE client_id = $2',
-              [rewardMinutes, tx.client_id]
+              `INSERT INTO wallet_credits (client_id, amount_inr, remaining_amount_inr, source_type, referral_reward_id, expires_at)
+               VALUES ($1, 500.00, 500.00, 'referral_bonus', $2, NOW() + INTERVAL '1 year')`,
+              [referredBy, rewardId]
             );
-            // 3. Record the reward
             await client.query(
-              'INSERT INTO referral_rewards (referrer_id, referee_id, reward_minutes, is_claimed) VALUES ($1, $2, $3, true)',
-              [referredBy, tx.client_id, rewardMinutes]
+              `INSERT INTO wallet_ledger (client_id, amount_inr, type, description)
+               VALUES ($1, 500.00, 'credit', 'Referral reward for inviting a business partner')`,
+              [referredBy]
             );
-            console.log(`🎁 Referral reward granted: 50 mins to ${referredBy} and ${tx.client_id}`);
+
+            // 3. Grant ₹500 credits to the referee (the one who just paid)
+            await client.query(
+              `INSERT INTO wallet_credits (client_id, amount_inr, remaining_amount_inr, source_type, referral_reward_id, expires_at)
+               VALUES ($1, 500.00, 500.00, 'referral_bonus', $2, NOW() + INTERVAL '1 year')`,
+              [tx.client_id, rewardId]
+            );
+            await client.query(
+              `INSERT INTO wallet_ledger (client_id, amount_inr, type, description)
+               VALUES ($1, 500.00, 'credit', 'Referral signup onboarding reward')`,
+              [tx.client_id]
+            );
+
+            console.log(`🎁 Referral reward granted: Rs. 500 wallet credits to referrer ${referredBy} and referee ${tx.client_id}`);
           }
         }
         // -----------------------------
@@ -464,6 +662,46 @@ function generateInvoiceHtml(tx, clientName) {
       </body>
       </html>
   `;
+}
+
+// FIFO Wallet Credit Consumption Engine
+async function consumeWalletCredits(client, clientId, amountInr, transactionId) {
+  let remainingToDeduct = parseFloat(amountInr);
+  if (remainingToDeduct <= 0) return;
+
+  const creditsResult = await client.query(
+    `SELECT * FROM wallet_credits 
+     WHERE client_id = $1 AND remaining_amount_inr > 0 AND expires_at > NOW() 
+     ORDER BY expires_at ASC`,
+    [clientId]
+  );
+
+  for (const credit of creditsResult.rows) {
+    const creditAmt = parseFloat(credit.remaining_amount_inr);
+    if (creditAmt >= remainingToDeduct) {
+      // Deduct partially or fully from this credit block
+      await client.query(
+        'UPDATE wallet_credits SET remaining_amount_inr = remaining_amount_inr - $1 WHERE id = $2',
+        [remainingToDeduct, credit.id]
+      );
+      remainingToDeduct = 0;
+      break;
+    } else {
+      // Consume this credit block entirely
+      await client.query(
+        'UPDATE wallet_credits SET remaining_amount_inr = 0 WHERE id = $2',
+        [credit.id]
+      );
+      remainingToDeduct -= creditAmt;
+    }
+  }
+
+  // Record debit in customer-facing wallet ledger
+  await client.query(
+    `INSERT INTO wallet_ledger (client_id, amount_inr, type, description, transaction_id)
+     VALUES ($1, $2, 'debit', $3, $4)`,
+    [clientId, -amountInr, 'debit', `Applied credits to purchase`, transactionId]
+  );
 }
 
 module.exports = router;

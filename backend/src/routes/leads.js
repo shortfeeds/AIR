@@ -142,13 +142,36 @@ router.get('/stats', auth, async (req, res) => {
       [req.user.id]
     );
 
-    const stats = result.rows[0];
-    if (stats) {
-      stats.minutes_today = Math.ceil(parseInt(stats.minutes_today) / 60);
-      stats.total_revenue_saved = stats.total_leads * (stats.avg_lead_value || 1000);
+    let stats = result.rows[0];
+    if (!stats || stats.total_leads === null) {
+      // Get avg_lead_value from profile even if no calls exist
+      const profile = await db.query('SELECT avg_lead_value FROM client_profiles WHERE user_id = $1', [req.user.id]);
+      const avgLeadValue = profile.rows[0]?.avg_lead_value || 1000;
+      
+      stats = {
+        calls_today: 0,
+        minutes_today: 0,
+        followed_up_today: 0,
+        total_new_leads: 0,
+        total_leads: 0,
+        avg_lead_value: avgLeadValue,
+        total_revenue_saved: 0,
+        health_score: 100,
+        health_grade: 'A'
+      };
+    } else {
+      stats.minutes_today = Math.ceil(parseInt(stats.minutes_today || 0) / 60);
+      stats.total_revenue_saved = parseInt(stats.total_leads || 0) * (stats.avg_lead_value || 1000);
+      stats.calls_today = parseInt(stats.calls_today || 0);
+      stats.followed_up_today = parseInt(stats.followed_up_today || 0);
+      stats.total_new_leads = parseInt(stats.total_new_leads || 0);
+      stats.total_leads = parseInt(stats.total_leads || 0);
+      stats.avg_lead_value = parseInt(stats.avg_lead_value || 1000);
+      stats.health_score = stats.health_score !== null ? parseInt(stats.health_score) : 100;
+      stats.health_grade = stats.health_grade || 'A';
     }
 
-    res.json({ stats: stats || {} });
+    res.json({ stats });
   } catch (err) {
     console.error('Get stats error:', err);
     res.status(500).json({ error: 'Failed to fetch stats' });

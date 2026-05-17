@@ -25,7 +25,7 @@ export default function AdminClients() {
   const [plivoNumber, setPlivoNumber] = useState("");
   const [bonusMins, setBonusMins] = useState("");
   const [newPlan, setNewPlan] = useState("");
-  const [newClient, setNewClient] = useState({ name: "", email: "", password: "", business_name: "", plan_name: "silver", initial_minutes: 200, plivo_number: "" });
+  const [newClient, setNewClient] = useState({ name: "", email: "", password: "", business_name: "", plan_name: "starter", initial_minutes: 200, plivo_number: "" });
   
   // Inventory States
   const [processing, setProcessing] = useState<string | null>(null);
@@ -414,10 +414,10 @@ export default function AdminClients() {
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1.5 block">Plan</label>
                     <select value={newClient.plan_name} onChange={(e) => setNewClient({...newClient, plan_name: e.target.value})} className="input-field">
-                      <option value="silver">Silver</option>
-                      <option value="gold">Gold</option>
-                      <option value="diamond">Diamond</option>
-                      <option value="platinum">Platinum</option>
+                      <option value="starter">Starter</option>
+                      <option value="growth">Growth</option>
+                      <option value="pro">Pro</option>
+                      <option value="scale">Scale</option>
                     </select>
                   </div>
                   <div>
@@ -526,10 +526,10 @@ export default function AdminClients() {
             <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
               <h3 className="font-bold text-white mb-4">Update Plan for {changePlanModal.name}</h3>
               <select value={newPlan} onChange={(e) => setNewPlan(e.target.value)} className="input-field mb-4">
-                 <option value="silver">Silver</option>
-                 <option value="gold">Gold</option>
-                 <option value="diamond">Diamond</option>
-                 <option value="platinum">Platinum</option>
+                 <option value="starter">Starter</option>
+                 <option value="growth">Growth</option>
+                 <option value="pro">Pro</option>
+                 <option value="scale">Scale</option>
               </select>
               <div className="flex gap-2">
                  <button onClick={() => setChangePlanModal(null)} className="btn-secondary flex-1 text-xs font-bold">Cancel</button>

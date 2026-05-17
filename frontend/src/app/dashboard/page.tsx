@@ -8,7 +8,7 @@ import Link from "next/link";
 import { 
   Phone, CheckCircle, ArrowRight, Copy, Check, Volume2, Clock, 
   Users, Activity, PhoneCall, PhoneIncoming, Download, Filter,
-  TrendingUp, Zap, AlertCircle, RefreshCw
+  TrendingUp, Zap, AlertCircle, RefreshCw, User, Calendar, ShieldAlert, Loader2
 } from "lucide-react";
 
 interface Lead {
@@ -23,6 +23,10 @@ interface Lead {
   recording_url?: string;
   lead_score?: number;
   sentiment?: string;
+  caller_name?: string;
+  caller_query?: string;
+  appointment_date?: string;
+  appointment_time?: string;
 }
 
 interface Stats {
@@ -32,6 +36,8 @@ interface Stats {
   total_new_leads: string;
   total_leads: string;
   total_revenue_saved: number;
+  health_score?: number;
+  health_grade?: string;
 }
 
 export default function DashboardOverview() {
@@ -39,6 +45,7 @@ export default function DashboardOverview() {
   const [copied, setCopied] = useState(false);
   const [filter, setFilter] = useState("all");
   const [isExporting, setIsExporting] = useState(false);
+  const [interceptingId, setInterceptingId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -52,11 +59,12 @@ export default function DashboardOverview() {
   // Real-time: Refresh leads & stats when a new lead is captured via Plivo webhook
   useSocket(user?.id, (event, data) => {
     if (event === 'new_lead') {
-      toast.success(`📞 New Lead Captured! Caller: ${data.caller_number}`, {
-        duration: 6000,
+      toast.success(`📞 New Lead Captured! Caller: ${data.caller_name || data.caller_number}`, {
+        duration: 7000,
         icon: '🔔',
       });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['leads', 'stats'] });
     }
   });
 
@@ -70,12 +78,23 @@ export default function DashboardOverview() {
     queryFn: () => api("/leads/stats")
   });
 
-  const leads = leadsData?.leads || [];
+  // Background active calls monitoring
+  const { data: liveRes } = useQuery({
+    queryKey: ['liveCalls'],
+    queryFn: () => api("/plivo/live-calls"),
+    refetchInterval: 4000, // Poll every 4 seconds for live calls
+    enabled: !!user
+  });
+
+  const leads = leadsData?.data || leadsData?.leads || [];
   const stats = statsData?.stats;
+  const liveCalls = liveRes?.calls || [];
   const loading = isLoadingLeads || isLoadingStats;
 
   const fetchData = () => {
     refetch();
+    queryClient.invalidateQueries({ queryKey: ['leads', 'stats'] });
+    queryClient.invalidateQueries({ queryKey: ['liveCalls'] });
   };
 
   const copyNumber = () => {
@@ -85,16 +104,33 @@ export default function DashboardOverview() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleIntercept = async (callUuid: string) => {
+    setInterceptingId(callUuid);
+    try {
+      const res = await api("/plivo/intercept", {
+        method: "POST",
+        body: JSON.stringify({ call_uuid: callUuid })
+      });
+      toast.success(res.message || "Human takeover initiated! Your phone will ring shortly.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to takeover live call");
+    } finally {
+      setInterceptingId(null);
+    }
+  };
+
   const exportLeads = () => {
     setIsExporting(true);
-    const headers = ["Date", "Caller", "Duration", "Sentiment", "Score", "Summary"];
+    const headers = ["Date", "Caller Name", "Phone", "Duration", "Query", "Sentiment", "Score", "Summary"];
     const rows = leads.map((l: Lead) => [
       new Date(l.call_timestamp).toLocaleDateString(),
+      l.caller_name || "Unknown",
       l.caller_number,
       `${l.call_duration_seconds}s`,
-      l.sentiment,
-      l.lead_score,
-      l.ai_summary?.replace(/,/g, ";")
+      l.caller_query?.replace(/,/g, ";") || "",
+      l.sentiment || "neutral",
+      l.lead_score || 0,
+      l.ai_summary?.replace(/,/g, ";") || ""
     ]);
     
     const csvContent = "data:text/csv;charset=utf-8," + 
@@ -128,7 +164,46 @@ export default function DashboardOverview() {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in max-w-6xl mx-auto pb-20">
+    <div className="space-y-8 max-w-6xl mx-auto pb-20 animate-fade-in">
+      {/* Active Live Calls Feed Widget */}
+      {liveCalls.length > 0 && (
+        <div className="bg-rose-500/10 border border-rose-500/20 p-5 rounded-2xl animate-pulse space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-rose-500 rounded-full inline-block animate-ping" />
+              <h3 className="font-extrabold text-rose-500 text-sm tracking-wide uppercase">⚡ LIVE TELEPHONY FEED ACTIVE</h3>
+            </div>
+            <span className="text-[10px] bg-rose-500/20 text-rose-400 font-bold px-2 py-0.5 rounded tracking-wide">
+              {liveCalls.length} Call{liveCalls.length > 1 ? "s" : ""} Ongoing
+            </span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {liveCalls.map((call: any) => (
+              <div key={call.call_uuid} className="bg-black/40 border border-white/5 p-4 rounded-xl flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Active Call From</p>
+                  <p className="text-sm font-extrabold text-white font-mono mt-0.5">{call.from}</p>
+                  <p className="text-[9px] text-rose-400/70 font-semibold mt-1">AI Assistant Speaking...</p>
+                </div>
+                <button 
+                  onClick={() => handleIntercept(call.call_uuid)} 
+                  disabled={interceptingId === call.call_uuid}
+                  className="bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-wider px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all shadow-md shadow-rose-950/50"
+                >
+                  {interceptingId === call.call_uuid ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                  )}
+                  Human Takeover
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Premium Header Card */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 card p-8 flex flex-col justify-center relative overflow-hidden group" style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)", borderColor: "rgba(99,102,241,0.2)" }}>
@@ -137,9 +212,9 @@ export default function DashboardOverview() {
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-4">
               <span className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black text-indigo-400 uppercase tracking-widest">Premium Active</span>
-              {stats?.calls_today !== "0" && (
-                <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 uppercase tracking-widest animate-pulse">
-                  <Activity className="w-3 h-3" /> Live Pulse
+              {liveCalls.length === 0 && (
+                <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block animate-pulse" /> AI Standby
                 </span>
               )}
             </div>
@@ -154,11 +229,13 @@ export default function DashboardOverview() {
                 </div>
                 <div>
                   <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em] mb-0.5">AI Routing Number</p>
-                  <span className="text-2xl font-mono font-bold tracking-widest text-white">{user?.plivo_number || "918031337777"}</span>
+                  <span className="text-2xl font-mono font-bold tracking-widest text-white">{user?.plivo_number || "Pending Allocation"}</span>
                 </div>
-                <button onClick={copyNumber} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all ml-4 border border-white/5" title="Copy Number">
-                  {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-white/40" />}
-                </button>
+                {user?.plivo_number && (
+                  <button onClick={copyNumber} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all ml-4 border border-white/5" title="Copy Number">
+                    {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-white/40" />}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -176,7 +253,7 @@ export default function DashboardOverview() {
               {stats?.health_grade && (
                 <div className="text-right">
                   <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Account Health</p>
-                  <p className={`text-lg font-black ${stats.health_score > 70 ? 'text-emerald-400' : 'text-amber-400'}`}>{stats.health_grade} ({stats.health_score}%)</p>
+                  <p className={`text-lg font-black ${stats.health_score && stats.health_score > 70 ? 'text-emerald-400' : 'text-amber-400'}`}>{stats.health_grade} ({stats.health_score}%)</p>
                 </div>
               )}
             </div>
@@ -210,32 +287,12 @@ export default function DashboardOverview() {
         ))}
       </div>
 
-      {/* Referral & Earn Banner */}
-      <div className="card p-1 border-indigo-500/30 overflow-hidden" style={{ background: "linear-gradient(90deg, rgba(99,102,241,0.1) 0%, rgba(168,85,247,0.1) 100%)" }}>
-        <div className="flex flex-col md:flex-row items-center justify-between p-6 gap-6">
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/20">
-              <Users className="w-8 h-8 text-indigo-400" />
-            </div>
-            <div>
-              <h3 className="text-xl font-black text-white mb-1 tracking-tight">Refer a Business, Earn 500 Free Minutes</h3>
-              <p className="text-sm text-white/50 font-medium">Help a friend never miss a call. When they sign up, you both get free credits.</p>
-            </div>
-          </div>
-          <Link href="/dashboard/referral" passHref>
-            <button className="btn-primary !px-10 whitespace-nowrap">
-              Get Referral Link
-            </button>
-          </Link>
-        </div>
-      </div>
-
       {/* Main Intelligence Inbox */}
       <div className="card overflow-hidden border-white/5">
         <div className="p-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/[0.01]">
           <div className="flex items-center gap-4">
-            <h3 className="font-bold text-lg text-white">Intelligence Inbox</h3>
-            <div className="flex gap-1">
+            <h3 className="font-extrabold text-base text-white tracking-wide">Intelligence Inbox</h3>
+            <div className="flex gap-1.5">
               {["all", "high_intent", "needs_followup"].map(f => (
                 <button 
                   key={f}
@@ -272,62 +329,111 @@ export default function DashboardOverview() {
             </div>
           ) : filteredLeads.map((lead: Lead) => (
             <div key={lead.id} className={`transition-all ${expandedId === lead.id ? "bg-white/[0.03] shadow-inner" : "hover:bg-white/[0.01]"}`}>
-              <div className="p-4 sm:p-6 cursor-pointer flex items-center justify-between" onClick={() => setExpandedId(expandedId === lead.id ? null : lead.id)}>
-                  <div className="flex items-center gap-6 min-w-[240px]">
-                    <div className={`w-1.5 h-10 rounded-full ${lead.status === "new" ? "bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.5)]" : "bg-white/5"}`} />
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <p className="font-bold text-base tracking-tight text-white">{lead.caller_number}</p>
-                        {(lead.lead_score || 0) >= 70 && (
-                          <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest bg-emerald-500 text-white px-2 py-0.5 rounded shadow-lg shadow-emerald-500/20">
-                            <Zap className="w-2 h-2 fill-current" /> Hot Lead
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider mt-1.5 opacity-30">{new Date(lead.call_timestamp).toLocaleString("en-IN", { dateStyle: 'medium', timeStyle: 'short' })}</p>
+              <div className="p-4 sm:p-5 cursor-pointer flex items-center justify-between" onClick={() => setExpandedId(expandedId === lead.id ? null : lead.id)}>
+                <div className="flex items-center gap-4 min-w-[240px]">
+                  <div className={`w-1 h-9 rounded-full ${lead.status === "new" ? "bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.5)]" : "bg-white/5"}`} />
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <p className="font-bold text-sm tracking-wide text-white">{lead.caller_number}</p>
+                      {lead.caller_name && (
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/20">
+                          {lead.caller_name}
+                        </span>
+                      )}
+                      {(lead.lead_score || 0) >= 70 && (
+                        <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest bg-emerald-500 text-white px-2 py-0.5 rounded shadow-lg shadow-emerald-500/20">
+                          <Zap className="w-2 h-2 fill-current" /> Hot Lead
+                        </span>
+                      )}
+                      {lead.appointment_date && (
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
+                          <Calendar className="w-2.5 h-2.5" /> Booked
+                        </span>
+                      )}
                     </div>
-                  </div>
-                  
-                  <div className="hidden lg:block flex-1 mx-12">
-                    <div className="bg-black/30 rounded-xl px-5 py-3 border border-white/5 flex items-center justify-between gap-6 backdrop-blur-sm">
-                      <p className="text-xs truncate opacity-60 italic font-medium leading-relaxed flex-1">&quot;{lead.ai_summary || "Automated call summary generated."}&quot;</p>
-                      <span className={`text-[9px] font-black px-3 py-1 rounded-full border uppercase tracking-widest ${
-                        lead.sentiment === 'positive' ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5' :
-                        lead.sentiment === 'negative' ? 'text-rose-400 border-rose-500/20 bg-rose-500/5' :
-                        'text-indigo-400 border-indigo-500/20 bg-indigo-500/5'
-                      }`}>
-                        {lead.sentiment || 'Neutral'}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-8 min-w-[140px] justify-end">
-                    <div className="text-right">
-                       <p className="text-sm font-black text-white">{Math.floor(lead.call_duration_seconds / 60)}m {lead.call_duration_seconds % 60}s</p>
-                       <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-0.5">Duration</p>
-                    </div>
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all ${expandedId === lead.id ? "bg-white border-white text-black rotate-90" : "border-white/10 text-white/30"}`}>
-                      <ArrowRight className="w-4 h-4" />
-                    </div>
+                    <p className="text-[10px] font-semibold mt-1 opacity-35">{new Date(lead.call_timestamp).toLocaleString("en-IN", { dateStyle: 'medium', timeStyle: 'short' })}</p>
                   </div>
                 </div>
                 
-                {expandedId === lead.id && (
-                  <div className="px-6 pb-8 pt-2 animate-slide-down">
-                    <div className="grid lg:grid-cols-12 gap-8 bg-black/60 rounded-3xl p-8 border border-white/10 shadow-2xl">
-                      <div className="lg:col-span-5 space-y-8">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2"><Activity className="w-3 h-3" /> AI Insight Summary</p>
-                            <div className="flex items-center gap-2">
-                               <div className="text-[10px] font-black bg-white/5 px-2 py-1 rounded text-white/40 uppercase tracking-widest">Score: <span className="text-white">{lead.lead_score || 0}%</span></div>
+                <div className="hidden lg:block flex-1 mx-8">
+                  <div className="bg-black/30 rounded-xl px-4 py-2 border border-white/5 flex items-center justify-between gap-4 backdrop-blur-sm">
+                    <p className="text-xs truncate opacity-60 italic font-medium leading-relaxed flex-1">&quot;{lead.ai_summary || "Automated call summary generated."}&quot;</p>
+                    <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full border uppercase tracking-widest ${
+                      lead.sentiment === 'positive' ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5' :
+                      lead.sentiment === 'negative' ? 'text-rose-400 border-rose-500/20 bg-rose-500/5' :
+                      'text-indigo-400 border-indigo-500/20 bg-indigo-500/5'
+                    }`}>
+                      {lead.sentiment || 'Neutral'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-8 min-w-[140px] justify-end">
+                  <div className="text-right">
+                     <p className="text-sm font-black text-white">{Math.floor(lead.call_duration_seconds / 60)}m {lead.call_duration_seconds % 60}s</p>
+                     <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-0.5 block">Duration</p>
+                  </div>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${expandedId === lead.id ? "bg-white border-white text-black rotate-90" : "border-white/10 text-white/30"}`}>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              </div>
+              
+              {expandedId === lead.id && (
+                <div className="px-5 pb-6 pt-1 animate-slide-down">
+                  <div className="grid lg:grid-cols-12 gap-6 bg-black/60 rounded-3xl p-6 border border-white/10 shadow-2xl">
+                    <div className="lg:col-span-5 space-y-6">
+                      {/* Identified Caller Profile Details Card */}
+                      {(lead.caller_name || lead.caller_query || lead.appointment_date) && (
+                        <div className="bg-indigo-950/20 p-4 rounded-xl border border-indigo-500/10 space-y-3">
+                          <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                            <User className="w-3.5 h-3.5 text-indigo-400" />
+                            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400">Caller Identification Profile</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            {lead.caller_name && (
+                              <div>
+                                <span className="text-[10px] opacity-40 block">NAME</span>
+                                <span className="font-extrabold text-white">{lead.caller_name}</span>
+                              </div>
+                            )}
+                            {lead.caller_number && (
+                              <div>
+                                <span className="text-[10px] opacity-40 block">NUMBER</span>
+                                <span className="font-extrabold text-white">{lead.caller_number}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {lead.caller_query && (
+                            <div>
+                              <span className="text-[10px] opacity-40 block uppercase tracking-wider">Caller Query</span>
+                              <p className="text-xs text-white/80 font-medium leading-relaxed mt-0.5 bg-black/20 p-2.5 rounded-lg border border-white/5">{lead.caller_query}</p>
                             </div>
-                          </div>
-                          <div className="text-sm leading-relaxed font-medium text-white/90 bg-white/[0.03] p-5 rounded-2xl border border-white/5 shadow-inner">
-                            {lead.ai_summary || "No summary available."}
-                          </div>
+                          )}
+
+                          {lead.appointment_date && (
+                            <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20 flex items-center gap-2.5">
+                              <Calendar className="w-4.5 h-4.5 text-amber-400" />
+                              <div>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 block">Appointment Booked</span>
+                                <span className="text-xs font-black text-white">{new Date(lead.appointment_date).toLocaleDateString()} @ {lead.appointment_time || "TBD"}</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      
+                      )}
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2"><Activity className="w-3 h-3" /> AI Insight Summary</p>
+                          <div className="text-[10px] font-black bg-white/5 px-2 py-1 rounded text-white/40 uppercase tracking-widest">Score: <span className="text-white">{lead.lead_score || 0}%</span></div>
+                        </div>
+                        <div className="text-xs leading-relaxed font-medium text-white/90 bg-white/[0.03] p-4 rounded-xl border border-white/5 shadow-inner italic">
+                          {lead.ai_summary || "No summary available."}
+                        </div>
+                      </div>
+                    
                       <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
                           <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Resolution</p>
@@ -340,9 +446,9 @@ export default function DashboardOverview() {
                       </div>
                       
                       {lead.recording_url && (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           <p className="text-[10px] font-black uppercase tracking-widest text-white/30 flex items-center gap-2">
-                            <Volume2 className="w-3 h-3" /> Play Call Recording
+                            <Volume2 className="w-3 h-3 text-indigo-400" /> Play Call Recording
                           </p>
                           <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
                             <audio controls className="w-full h-8 custom-audio-player">
@@ -354,13 +460,14 @@ export default function DashboardOverview() {
                     </div>
                     
                     <div className="lg:col-span-7">
-                      <div className="h-full bg-black/40 rounded-2xl p-6 border border-white/5 flex flex-col">
-                        <div className="flex items-center justify-between mb-6">
+                      <div className="h-full bg-black/40 rounded-2xl p-5 border border-white/5 flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
                           <p className="text-[10px] font-black uppercase tracking-widest text-white/30 flex items-center gap-2">
-                            <Phone className="w-3 h-3" /> Complete Call Transcript
+                            <Phone className="w-3 h-3 text-indigo-400" /> Complete Call Transcript
                           </p>
                           <button onClick={() => {
                             navigator.clipboard.writeText(lead.transcript_raw);
+                            toast.success("Transcript copied to clipboard!");
                           }} className="text-[10px] font-black text-white/40 hover:text-white transition-colors uppercase tracking-widest">Copy Text</button>
                         </div>
                         <div className="flex-1 text-xs font-medium space-y-4 max-h-[350px] overflow-y-auto custom-scrollbar text-white/60 leading-loose whitespace-pre-wrap px-2">
